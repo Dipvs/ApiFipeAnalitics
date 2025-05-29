@@ -185,8 +185,8 @@ const carApiServiceBrazil = {
       let cars = filterMockCars(filters);
       
       // Aplicar limite se especificado
-      const limit = parseInt(filters.limit) || 10;
-      if (limit > 0) {
+      const limit = parseInt(filters.limit) || cars.length;
+      if (limit > 0 && limit < cars.length) {
         cars = cars.slice(0, limit);
       }
 

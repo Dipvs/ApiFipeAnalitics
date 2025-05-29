@@ -95,7 +95,11 @@ const CarSearch: React.FC<CarSearchProps> = ({ onAddToComparison, selectedCars =
     { name: 'Toyota', icon: '🚗' },
     { name: 'Honda', icon: '🏎️' },
     { name: 'Volkswagen', icon: '🚙' },
-    { name: 'Chevrolet', icon: '🏁' }
+    { name: 'Chevrolet', icon: '🏁' },
+    { name: 'Fiat', icon: '🚘' },
+    { name: 'Ford', icon: '🚐' },
+    { name: 'Hyundai', icon: '🚕' },
+    { name: 'Nissan', icon: '🚖' }
   ];
 
   // Carregar marcas disponíveis
@@ -105,11 +109,23 @@ const CarSearch: React.FC<CarSearchProps> = ({ onAddToComparison, selectedCars =
       console.log('🔍 Carregando marcas...');
       const makesData = await carApiService.getMakes();
       console.log('✅ Marcas carregadas:', makesData);
+      console.log('📊 Total de marcas:', makesData.length);
       setMakes(makesData);
+      
+      if (makesData.length === 0) {
+        console.warn('⚠️ Nenhuma marca retornada da API, usando fallback');
+        setMakes(popularMakes.map(m => m.name));
+      }
     } catch (error) {
       console.error('❌ Erro ao carregar marcas:', error);
       setError('Erro ao carregar marcas. Usando dados locais.');
-      setMakes(popularMakes.map(m => m.name));
+      // Fallback para todas as marcas conhecidas
+      const fallbackMakes = [
+        'Toyota', 'Honda', 'Volkswagen', 'Chevrolet', 'Fiat', 'Ford', 
+        'Hyundai', 'Nissan', 'Renault', 'Jeep', 'Peugeot', 'Citroën',
+        'Mitsubishi', 'Kia', 'Chery', 'Caoa Chery', 'JAC'
+      ];
+      setMakes(fallbackMakes);
     } finally {
       setLoading(false);
     }
@@ -225,18 +241,55 @@ const CarSearch: React.FC<CarSearchProps> = ({ onAddToComparison, selectedCars =
         </div>
       </div>
 
+      {/* Debug: Mostrar marcas carregadas */}
+      {makes.length > 0 && (
+        <div className="debug-section" style={{ 
+          background: 'rgba(0, 255, 0, 0.1)', 
+          padding: '1rem', 
+          borderRadius: '8px', 
+          marginBottom: '1rem',
+          border: '1px solid rgba(0, 255, 0, 0.3)'
+        }}>
+          <h4 style={{ color: '#00ff88', marginBottom: '0.5rem' }}>
+            ✅ Debug: {makes.length} marcas carregadas
+          </h4>
+          <div style={{ 
+            display: 'flex', 
+            flexWrap: 'wrap', 
+            gap: '0.5rem',
+            fontSize: '0.9rem',
+            color: '#cccccc'
+          }}>
+            {makes.map((make, index) => (
+              <span key={make} style={{ 
+                background: 'rgba(255, 255, 255, 0.1)', 
+                padding: '0.25rem 0.5rem', 
+                borderRadius: '4px' 
+              }}>
+                {index + 1}. {make}
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* Filtros Avançados */}
       <div className="advanced-filters">
         <h3>Filtros Avançados</h3>
         <div className="filters-grid">
           <div className="filter-group">
-            <label htmlFor="make">Marca</label>
+            <label htmlFor="make">
+              Marca {makes.length > 0 && `(${makes.length} disponíveis)`}
+            </label>
             <select
               id="make"
               value={filters.make || ''}
               onChange={(e) => handleFilterChange('make', e.target.value)}
+              disabled={loading && makes.length === 0}
             >
-              <option value="">Todas as marcas</option>
+              <option value="">
+                {loading && makes.length === 0 ? 'Carregando marcas...' : 'Todas as marcas'}
+              </option>
               {makes.map((make) => (
                 <option key={make} value={make}>{make}</option>
               ))}
