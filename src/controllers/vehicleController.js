@@ -125,6 +125,15 @@ async searchByPriceRange(req, res, next) {
     }
   },
 
+  async getSearchFilters(req, res, next) {
+    try {
+      const data = await vehicleService.getSearchFilters();
+      res.json(data);
+    } catch (err) {
+      next(err);
+    }
+  },
+
   async getHistory(req, res, next) {
     try {
       const data = await vehicleService.getHistory();

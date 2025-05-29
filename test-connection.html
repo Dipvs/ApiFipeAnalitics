@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Teste de Conexão API</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #1a1a1a;
+            color: #fff;
+        }
+        .test-section {
+            background: #2a2a2a;
+            padding: 20px;
+            margin: 20px 0;
+            border-radius: 8px;
+            border: 1px solid #ff0000;
+        }
+        button {
+            background: #ff0000;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover {
+            background: #cc0000;
+        }
+        .result {
+            background: #333;
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 4px;
+            white-space: pre-wrap;
+            font-family: monospace;
+        }
+        .success {
+            border-left: 4px solid #00ff00;
+        }
+        .error {
+            border-left: 4px solid #ff0000;
+        }
+    </style>
+</head>
+<body>
+    <h1>🏎️ FIPE Analytics - Teste de Conexão</h1>
+    
+    <div class="test-section">
+        <h2>Teste 1: Health Check</h2>
+        <button onclick="testHealth()">Testar Health Check</button>
+        <div id="health-result" class="result"></div>
+    </div>
+
+    <div class="test-section">
+        <h2>Teste 2: Busca de Filtros</h2>
+        <button onclick="testFilters()">Testar Filtros</button>
+        <div id="filters-result" class="result"></div>
+    </div>
+
+    <div class="test-section">
+        <h2>Teste 3: Busca de Veículos</h2>
+        <button onclick="testSearch()">Buscar Honda</button>
+        <button onclick="testSearchFilters()">Buscar com Filtros</button>
+        <div id="search-result" class="result"></div>
+    </div>
+
+    <script>
+        const API_BASE = 'http://localhost:3000';
+
+        async function testHealth() {
+            const resultDiv = document.getElementById('health-result');
+            resultDiv.textContent = 'Testando...';
+            
+            try {
+                const response = await fetch(`${API_BASE}/health`);
+                const data = await response.json();
+                
+                resultDiv.textContent = `✅ Sucesso!\nStatus: ${response.status}\nResposta: ${JSON.stringify(data, null, 2)}`;
+                resultDiv.className = 'result success';
+            } catch (error) {
+                resultDiv.textContent = `❌ Erro: ${error.message}`;
+                resultDiv.className = 'result error';
+            }
+        }
+
+        async function testFilters() {
+            const resultDiv = document.getElementById('filters-result');
+            resultDiv.textContent = 'Testando...';
+            
+            try {
+                const response = await fetch(`${API_BASE}/api/search/filters`);
+                const data = await response.json();
+                
+                resultDiv.textContent = `✅ Sucesso!\nStatus: ${response.status}\nFiltros: ${JSON.stringify(data, null, 2)}`;
+                resultDiv.className = 'result success';
+            } catch (error) {
+                resultDiv.textContent = `❌ Erro: ${error.message}`;
+                resultDiv.className = 'result error';
+            }
+        }
+
+        async function testSearch() {
+            const resultDiv = document.getElementById('search-result');
+            resultDiv.textContent = 'Testando busca por Honda...';
+            
+            try {
+                const response = await fetch(`${API_BASE}/api/search?name=honda`);
+                const data = await response.json();
+                
+                resultDiv.textContent = `✅ Sucesso!\nStatus: ${response.status}\nTotal: ${data.total}\nVeículos encontrados: ${data.data.length}\n\nPrimeiro veículo:\n${JSON.stringify(data.data[0], null, 2)}`;
+                resultDiv.className = 'result success';
+            } catch (error) {
+                resultDiv.textContent = `❌ Erro: ${error.message}`;
+                resultDiv.className = 'result error';
+            }
+        }
+
+        async function testSearchFilters() {
+            const resultDiv = document.getElementById('search-result');
+            resultDiv.textContent = 'Testando busca com filtros...';
+            
+            try {
+                const response = await fetch(`${API_BASE}/api/search?tipo=carros&marca=Honda`);
+                const data = await response.json();
+                
+                resultDiv.textContent = `✅ Sucesso!\nStatus: ${response.status}\nTotal: ${data.total}\nVeículos encontrados: ${data.data.length}\n\nResultados:\n${JSON.stringify(data.data, null, 2)}`;
+                resultDiv.className = 'result success';
+            } catch (error) {
+                resultDiv.textContent = `❌ Erro: ${error.message}`;
+                resultDiv.className = 'result error';
+            }
+        }
+
+        // Teste automático ao carregar a página
+        window.onload = function() {
+            console.log('Página carregada, testando conexão...');
+            testHealth();
+        };
+    </script>
+</body>
+</html> 

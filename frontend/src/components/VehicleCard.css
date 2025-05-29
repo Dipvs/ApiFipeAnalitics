@@ -1,0 +1,513 @@
+/* Modern Vehicle Card - Design Amigável */
+.modern-vehicle-card {
+  background: linear-gradient(145deg, rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0.05));
+  border: 1px solid rgba(0, 255, 136, 0.2);
+  border-radius: 20px;
+  overflow: hidden;
+  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  backdrop-filter: blur(20px);
+  position: relative;
+  height: fit-content;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+  transform: translateY(0);
+}
+
+.modern-vehicle-card:hover {
+  transform: translateY(-12px) scale(1.02);
+  border-color: rgba(0, 255, 136, 0.5);
+  box-shadow: 
+    0 20px 60px rgba(0, 255, 136, 0.15),
+    0 0 40px rgba(0, 255, 136, 0.1);
+}
+
+.modern-vehicle-card.selected {
+  border-color: #00ff88;
+  background: linear-gradient(145deg, rgba(0, 255, 136, 0.15), rgba(0, 255, 136, 0.05));
+  box-shadow: 
+    0 20px 60px rgba(0, 255, 136, 0.25),
+    0 0 40px rgba(0, 255, 136, 0.2);
+  transform: translateY(-8px);
+}
+
+/* Badge de Seleção */
+.selection-badge {
+  position: absolute;
+  top: 15px;
+  right: 15px;
+  width: 40px;
+  height: 40px;
+  background: linear-gradient(135deg, #00ff88, #00c8ff);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10;
+  animation: bounceIn 0.6s ease;
+  box-shadow: 0 4px 20px rgba(0, 255, 136, 0.4);
+}
+
+.check-icon {
+  color: #000;
+  font-size: 1.2rem;
+  font-weight: bold;
+}
+
+/* Container da Imagem */
+.modern-car-image-container {
+  position: relative;
+  height: 220px;
+  overflow: hidden;
+  background: linear-gradient(135deg, #1a1a1a, #2d2d2d);
+  border-radius: 20px 20px 0 0;
+}
+
+.modern-car-image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+  filter: brightness(1.1) contrast(1.1);
+}
+
+.modern-vehicle-card:hover .modern-car-image {
+  transform: scale(1.1);
+}
+
+/* Loading da Imagem */
+.modern-image-loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.3);
+  color: rgba(255, 255, 255, 0.8);
+}
+
+.modern-loading-spinner {
+  width: 40px;
+  height: 40px;
+  border: 3px solid rgba(0, 255, 136, 0.3);
+  border-top: 3px solid #00ff88;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  margin-bottom: 10px;
+}
+
+.loading-text {
+  font-size: 0.9rem;
+  font-weight: 500;
+}
+
+/* Erro da Imagem */
+.modern-image-error {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  color: rgba(255, 255, 255, 0.6);
+  background: rgba(0, 0, 0, 0.2);
+}
+
+.error-icon {
+  font-size: 3rem;
+  margin-bottom: 10px;
+  opacity: 0.7;
+}
+
+.error-text {
+  font-size: 0.9rem;
+  text-align: center;
+  font-weight: 500;
+}
+
+/* Overlay da Imagem */
+.image-overlay {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: linear-gradient(transparent, rgba(0, 0, 0, 0.7));
+  padding: 20px 15px 15px;
+  display: flex;
+  justify-content: flex-end;
+}
+
+.car-year-badge {
+  background: rgba(0, 255, 136, 0.9);
+  color: #000;
+  padding: 6px 12px;
+  border-radius: 20px;
+  font-size: 0.85rem;
+  font-weight: 700;
+  backdrop-filter: blur(10px);
+  box-shadow: 0 4px 15px rgba(0, 255, 136, 0.3);
+}
+
+/* Conteúdo do Card */
+.modern-card-content {
+  padding: 24px;
+  color: #ffffff;
+}
+
+/* Header do Card */
+.modern-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 20px;
+  gap: 15px;
+}
+
+.car-title-section {
+  flex: 1;
+}
+
+.modern-car-title {
+  font-size: 1.4rem;
+  font-weight: 700;
+  margin: 0 0 4px 0;
+  color: #ffffff;
+  line-height: 1.2;
+  font-family: 'Orbitron', sans-serif;
+}
+
+.modern-car-model {
+  font-size: 1rem;
+  color: rgba(255, 255, 255, 0.8);
+  margin: 0;
+  font-weight: 500;
+  font-family: 'Rajdhani', sans-serif;
+}
+
+.modern-price-section {
+  text-align: right;
+}
+
+.modern-price {
+  font-size: 1.3rem;
+  font-weight: 700;
+  color: #00ff88;
+  text-shadow: 0 0 10px rgba(0, 255, 136, 0.3);
+  font-family: 'Orbitron', sans-serif;
+}
+
+/* Grid de Especificações */
+.modern-specs-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin-bottom: 20px;
+}
+
+.modern-spec-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: rgba(255, 255, 255, 0.05);
+  padding: 12px;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  transition: all 0.3s ease;
+}
+
+.modern-spec-item:hover {
+  background: rgba(0, 255, 136, 0.1);
+  border-color: rgba(0, 255, 136, 0.3);
+  transform: translateY(-2px);
+}
+
+.spec-icon {
+  font-size: 1.2rem;
+  min-width: 20px;
+}
+
+.spec-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.spec-label {
+  font-size: 0.75rem;
+  color: rgba(255, 255, 255, 0.7);
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.spec-value {
+  font-size: 0.9rem;
+  color: #ffffff;
+  font-weight: 600;
+}
+
+/* Performance */
+.modern-performance {
+  display: flex;
+  gap: 15px;
+  margin-bottom: 20px;
+  padding: 15px;
+  background: rgba(0, 255, 136, 0.05);
+  border-radius: 12px;
+  border: 1px solid rgba(0, 255, 136, 0.2);
+}
+
+.performance-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1;
+}
+
+.perf-icon {
+  font-size: 1.1rem;
+}
+
+.perf-label {
+  font-size: 0.8rem;
+  color: rgba(255, 255, 255, 0.8);
+  font-weight: 500;
+}
+
+.perf-value {
+  font-size: 0.9rem;
+  color: #00ff88;
+  font-weight: 700;
+  margin-left: auto;
+}
+
+/* Features */
+.modern-features {
+  margin-bottom: 20px;
+}
+
+.features-title {
+  font-size: 1rem;
+  color: #ffffff;
+  margin: 0 0 12px 0;
+  font-weight: 600;
+  font-family: 'Rajdhani', sans-serif;
+}
+
+.features-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.feature-tag {
+  background: rgba(0, 200, 255, 0.2);
+  color: #00c8ff;
+  padding: 6px 12px;
+  border-radius: 20px;
+  font-size: 0.8rem;
+  font-weight: 500;
+  border: 1px solid rgba(0, 200, 255, 0.3);
+  transition: all 0.3s ease;
+}
+
+.feature-tag:hover {
+  background: rgba(0, 200, 255, 0.3);
+  transform: translateY(-2px);
+}
+
+/* Botão de Ação */
+.modern-card-actions {
+  margin-top: 20px;
+}
+
+.modern-comparison-btn {
+  width: 100%;
+  padding: 16px 20px;
+  background: linear-gradient(135deg, #00ff88, #00c8ff);
+  border: none;
+  border-radius: 16px;
+  color: #000;
+  font-weight: 700;
+  font-size: 0.95rem;
+  cursor: pointer;
+  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  position: relative;
+  overflow: hidden;
+  font-family: 'Rajdhani', sans-serif;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.modern-comparison-btn::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.3), transparent);
+  transition: left 0.6s ease;
+}
+
+.modern-comparison-btn:hover::before {
+  left: 100%;
+}
+
+.modern-comparison-btn:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 10px 30px rgba(0, 255, 136, 0.4);
+  background: linear-gradient(135deg, #00ff88, #00c8ff, #ff0080);
+  background-size: 200% 200%;
+  animation: gradientShift 2s ease infinite;
+}
+
+.modern-comparison-btn.selected {
+  background: linear-gradient(135deg, #22c55e, #16a34a);
+  color: #fff;
+  cursor: default;
+}
+
+.modern-comparison-btn.selected:hover {
+  transform: none;
+  box-shadow: 0 8px 25px rgba(34, 197, 94, 0.3);
+  animation: none;
+}
+
+.btn-icon {
+  font-size: 1.1rem;
+  font-weight: bold;
+}
+
+.btn-text {
+  font-size: 0.9rem;
+}
+
+/* Animações */
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+@keyframes bounceIn {
+  0% {
+    transform: scale(0);
+    opacity: 0;
+  }
+  50% {
+    transform: scale(1.2);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+@keyframes gradientShift {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+/* Responsividade */
+@media (max-width: 768px) {
+  .modern-vehicle-card {
+    border-radius: 16px;
+  }
+
+  .modern-car-image-container {
+    height: 180px;
+    border-radius: 16px 16px 0 0;
+  }
+
+  .modern-card-content {
+    padding: 20px;
+  }
+
+  .modern-card-header {
+    flex-direction: column;
+    gap: 10px;
+    margin-bottom: 16px;
+  }
+
+  .modern-price-section {
+    text-align: left;
+  }
+
+  .modern-price {
+    font-size: 1.2rem;
+  }
+
+  .modern-specs-grid {
+    grid-template-columns: 1fr;
+    gap: 10px;
+    margin-bottom: 16px;
+  }
+
+  .modern-performance {
+    flex-direction: column;
+    gap: 10px;
+    margin-bottom: 16px;
+  }
+
+  .performance-item {
+    justify-content: space-between;
+  }
+
+  .modern-comparison-btn {
+    padding: 14px 18px;
+    font-size: 0.9rem;
+  }
+
+  .selection-badge {
+    width: 35px;
+    height: 35px;
+    top: 12px;
+    right: 12px;
+  }
+
+  .check-icon {
+    font-size: 1rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .modern-card-content {
+    padding: 16px;
+  }
+
+  .modern-car-title {
+    font-size: 1.2rem;
+  }
+
+  .modern-car-model {
+    font-size: 0.9rem;
+  }
+
+  .modern-price {
+    font-size: 1.1rem;
+  }
+
+  .modern-spec-item {
+    padding: 10px;
+  }
+
+  .spec-icon {
+    font-size: 1rem;
+  }
+
+  .modern-performance {
+    padding: 12px;
+  }
+
+  .features-tags {
+    gap: 6px;
+  }
+
+  .feature-tag {
+    font-size: 0.75rem;
+    padding: 5px 10px;
+  }
+} 
