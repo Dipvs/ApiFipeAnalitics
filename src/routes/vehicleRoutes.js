@@ -316,7 +316,6 @@ router.get('/stats/popular', controller.getPopularVehicles);
  */
 router.post('/vehicles/:type/price-range', controller.searchByPriceRange);
 
-
 /**
  * @swagger
  * /search:
@@ -330,11 +329,66 @@ router.post('/vehicles/:type/price-range', controller.searchByPriceRange);
  *         schema:
  *           type: string
  *         description: Nome do veículo para pesquisa
+ *       - in: query
+ *         name: tipo
+ *         schema:
+ *           type: string
+ *           enum: [carros, motos, caminhoes]
+ *         description: Tipo do veículo
+ *       - in: query
+ *         name: marca
+ *         schema:
+ *           type: string
+ *         description: Marca do veículo
+ *       - in: query
+ *         name: anoMin
+ *         schema:
+ *           type: integer
+ *         description: Ano mínimo
+ *       - in: query
+ *         name: anoMax
+ *         schema:
+ *           type: integer
+ *         description: Ano máximo
+ *       - in: query
+ *         name: precoMin
+ *         schema:
+ *           type: number
+ *         description: Preço mínimo
+ *       - in: query
+ *         name: precoMax
+ *         schema:
+ *           type: number
+ *         description: Preço máximo
+ *       - in: query
+ *         name: page
+ *         schema:
+ *           type: integer
+ *           default: 1
+ *         description: Página
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *           default: 10
+ *         description: Limite por página
  *     responses:
  *       200:
  *         description: Veículos encontrados retornados com sucesso
  */
 router.get('/search', controller.searchVehicleByName);
+
+/**
+ * @swagger
+ * /search/filters:
+ *   get:
+ *     summary: Retorna filtros disponíveis para busca
+ *     tags: [Veículos]
+ *     responses:
+ *       200:
+ *         description: Filtros disponíveis retornados com sucesso
+ */
+router.get('/search/filters', controller.getSearchFilters);
 
 /**
  * @swagger
