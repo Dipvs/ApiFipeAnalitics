@@ -42,6 +42,8 @@ interface SearchFilters {
 
 interface CarSearchProps {
   onAddToComparison?: (car: CarData) => void;
+  onRemoveFromComparison?: (carId: string) => void;
+  onCompare?: () => void;
   selectedCars?: CarData[];
 }
 
@@ -76,7 +78,12 @@ const carApiService = {
   }
 };
 
-const CarSearch: React.FC<CarSearchProps> = ({ onAddToComparison, selectedCars = [] }) => {
+const CarSearch: React.FC<CarSearchProps> = ({
+  onAddToComparison,
+  onRemoveFromComparison,
+  onCompare,
+  selectedCars = [],
+}) => {
   const [makes, setMakes] = useState<string[]>([]);
   const [searchResults, setSearchResults] = useState<CarData[]>([]);
   const [loading, setLoading] = useState(false);
@@ -387,22 +394,75 @@ const CarSearch: React.FC<CarSearchProps> = ({ onAddToComparison, selectedCars =
 
       {/* Resultados */}
       {selectedCars.length > 0 ? (
-        <div className="results-section">
-          <h3 className="results-title">
-            Carros Selecionados ({selectedCars.length} veículos)
-          </h3>
-          <div className="results-grid">
-            {selectedCars.map((car, index) => (
-              <VehicleCard
-                key={`${car.make}-${car.model}-${car.year}-${index}`}
-                vehicle={car}
-                onAddToComparison={onAddToComparison}
-                selected={true}
-              />
-            ))}
-          </div>
-        </div>
-      ) : !loading && !error && (
+          <section className="comparison-section">
+            <div className="container">
+              <h2>⚖️ Comparação de Veículos ({selectedCars.length}/3)</h2>
+              
+              {selectedCars.length >= 2 && (
+                <div className="compare-button-container">
+                  <button className="compare-button" onClick={onCompare}>
+                    🏆 COMPARAR E DECIDIR VENCEDOR
+                  </button>
+                </div>
+              )}
+              
+              <div className="comparison-grid">
+                {selectedCars.map((car) => (
+                  <div key={car.id} className="comparison-card">
+                    <button 
+                      className="remove-button"
+                      onClick={() => onRemoveFromComparison?.(car.id)}
+                    >
+                      ✕
+                    </button>
+                    <h3>{car.make} {car.model} {car.year}</h3>
+                    <div className="car-price">R$ {car.price.toLocaleString('pt-BR')}</div>
+                    
+                    <div className="car-details">
+                      <div className="detail-section">
+                        <h4>🔧 Motor</h4>
+                        <p>Potência: {car.engine.power_hp} HP</p>
+                        <p>Torque: {car.engine.torque_nm} Nm</p>
+                        <p>Cilindros: {car.engine.cylinders}</p>
+                        <p>Deslocamento: {car.engine.displacement}L</p>
+                      </div>
+                      
+                      <div className="detail-section">
+                        <h4>🏁 Performance</h4>
+                        <p>Vel. Máxima: {car.performance.max_speed_kmh} km/h</p>
+                        <p>0-100 km/h: {car.performance.acceleration_0_100_kmh}s</p>
+                      </div>
+                      
+                      <div className="detail-section">
+                        <h4>⛽ Consumo</h4>
+                        <p>Cidade: {car.kmpl_city} km/l</p>
+                        <p>Estrada: {car.kmpl_highway} km/l</p>
+                        <p>Combustível: {car.fuel_type}</p>
+                        <p>Transmissão: {car.transmission}</p>
+                      </div>
+                      
+                      <div className="detail-section">
+                        <h4>🎯 Características</h4>
+                        <ul>
+                          {car.features.slice(0, 3).map((feature, index) => (
+                            <li key={index}>{feature}</li>
+                          ))}
+                        </ul>
+                      </div>
+                      
+                      <div className="detail-section">
+                        <h4>📏 Especificações</h4>
+                        <p>Portas: {car.specifications.doors}</p>
+                        <p>Assentos: {car.specifications.seats}</p>
+                        <p>Porta-malas: {car.specifications.trunk_capacity}L</p>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </section>
+        ) : !loading && !error && (
         <div className="no-results-message">
           <div className="no-results-icon">🔍</div>
           <h3>Nenhum carro selecionado ainda</h3>
