@@ -381,7 +381,7 @@ function App() {
         {/* SEÇÃO DE BUSCA */}
         <section className="search-section">
           <div className="container">
-            <CarSearch onAddToComparison={handleAddToComparison} />
+            <CarSearch onAddToComparison={handleAddToComparison} selectedCars={selectedCars} />
           </div>
         </section>
 
