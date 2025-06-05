@@ -232,4 +232,203 @@ Para suporte e dúvidas:
 
 ---
 
+## 🎓 **DIVISÃO DAS FUNCIONALIDADES BACKEND - APRESENTAÇÃO**
+
+### 🏗️ **1. THAY - Arquitetura e Configuração do Servidor**
+
+#### **Funcionalidades:**
+- **Configuração Express.js** com middlewares personalizados
+- **Sistema CORS** para múltiplas portas de desenvolvimento  
+- **Estrutura MVC** organizada e modular
+- **Scripts de automação** para deploy e inicialização
+
+#### **Localização no Código:**
+- **Arquivo**: `src/app.js` (linhas 1-121)
+- **CORS**: `src/app.js` (linhas 17-42)
+- **Middlewares**: `src/app.js` (linhas 46-49)
+- **Scripts**: `start.sh`, `stop.sh`, `test.sh`
+
+#### **Perguntas do Professor:**
+- "Por que escolheram o padrão MVC para organizar o código?"
+- "Como funciona a configuração de CORS para múltiplas portas?"
+- "Explique o processo de inicialização da aplicação"
+- "Quais middlewares foram implementados e suas funções?"
+
+---
+
+### 📊 **2. DEBORAH - Base de Dados e Modelos**
+
+#### **Funcionalidades:**
+- **Base de dados brasileira** com 1997 linhas de carros
+- **Algoritmo de geração de preços** em BRL por marca
+- **Enriquecimento automático** de dados técnicos
+- **Especificações completas** de motor, performance e consumo
+
+#### **Localização no Código:**
+- **Arquivo**: `src/data/expandedBrazilianCars.js` (linhas 1-1997)
+- **Algoritmo de preços**: `src/services/carApiServiceBrazil.js` (linhas 66-83)
+- **Enriquecimento**: `src/services/carApiServiceBrazil.js` (linhas 85-170)
+- **Filtros**: `src/services/carApiServiceBrazil.js` (linhas 16-60)
+
+#### **Perguntas do Professor:**
+- "Como geraram os preços realistas para o mercado brasileiro?"
+- "Quantos modelos de carros estão na base de dados?"
+- "Como garantem a integridade e qualidade dos dados?"
+- "Explique o processo de enriquecimento automático de dados"
+
+---
+
+### 🔍 **3. THAIS - API RESTful e Endpoints**
+
+#### **Funcionalidades:**
+- **17 endpoints REST** organizados e documentados
+- **Sistema de busca avançada** com múltiplos filtros
+- **Documentação Swagger** automática
+- **Validação robusta** de parâmetros de entrada
+
+#### **Localização no Código:**
+- **Arquivo**: `src/routes/carRoutes.js` (linhas 1-98)
+- **Endpoints principais**: `src/routes/carRoutes.js` (linhas 25-80)
+- **Middleware logging**: `src/routes/carRoutes.js` (linhas 10-16)
+- **Controllers**: `src/controllers/carController.js` (linhas 1-685)
+
+#### **Perguntas do Professor:**
+- "Quantos endpoints possui a API e suas funcionalidades?"
+- "Como implementaram a documentação automática da API?"
+- "Explique os diferentes tipos de busca disponíveis"
+- "Como tratam a validação de parâmetros nas requisições?"
+
+---
+
+### 🧮 **4. JOÃO VITOR - Algoritmos de Comparação e Lógica**
+
+#### **Funcionalidades:**
+- **Sistema de pontuação ponderada** com 4 critérios
+- **Algoritmos de comparação** entre múltiplos veículos
+- **Cálculos de eficiência** e custo-benefício
+- **Conversões automáticas** (MPG→km/l, formatação BRL)
+
+#### **Localização no Código:**
+- **Arquivo**: `src/controllers/carController.js` (linhas 400-500)
+- **Comparação**: `src/controllers/carController.js` (método `compareCars`)
+- **Estatísticas**: `src/controllers/carController.js` (método `getCarStats`)
+- **Conversões**: `src/services/carApiServiceBrazil.js` (linhas 95-110)
+
+#### **Perguntas do Professor:**
+- "Como funciona o algoritmo de pontuação para comparação?"
+- "Quais são os 4 critérios e seus pesos na comparação?"
+- "Como calculam custo-benefício de cada veículo?"
+- "Explique as conversões de unidades implementadas"
+
+---
+
+### 🛡️ **5. VICTOR - Middlewares, Erros e Performance**
+
+#### **Funcionalidades:**
+- **Sistema global de tratamento de erros**
+- **Middlewares customizados** de logging e cache
+- **Cache inteligente** para imagens de carros
+- **Health checks** e monitoramento de performance
+
+#### **Localização no Código:**
+- **Arquivo**: `src/middlewares/errorHandler.js` (linhas 1-29)
+- **Cache sistema**: `src/services/carImageService.js` (linhas 1-237)
+- **Health check**: `src/app.js` (linhas 65-75)
+- **Logging**: `src/routes/carRoutes.js` (linhas 10-16)
+
+#### **Perguntas do Professor:**
+- "Como implementaram o tratamento global de erros?"
+- "Explique o sistema de cache para otimização"
+- "Como monitoram a performance da aplicação?"
+- "Quais middlewares customizados foram desenvolvidos?"
+
+---
+
+## 🔧 **ENDPOINTS PRINCIPAIS COM LOCALIZAÇÃO**
+
+### **Endpoints de Busca:**
+```javascript
+// Localização: src/routes/carRoutes.js (linha 26)
+GET /api/cars/search?make=Toyota&model=Corolla
+
+// Localização: src/routes/carRoutes.js (linha 32)  
+GET /api/cars/make/:make
+
+// Localização: src/routes/carRoutes.js (linha 38)
+GET /api/cars/year/:year
+```
+
+### **Endpoints de Comparação:**
+```javascript
+// Localização: src/routes/carRoutes.js (linha 65)
+POST /api/cars/compare
+
+// Localização: src/routes/carRoutes.js (linha 59)
+GET /api/cars/stats
+```
+
+### **Endpoints de Monitoramento:**
+```javascript
+// Localização: src/app.js (linha 65)
+GET /health
+
+// Localização: src/routes/carRoutes.js (linha 23)
+GET /api/cars/health
+```
+
+---
+
+## 📊 **MÉTRICAS TÉCNICAS DETALHADAS**
+
+### **Distribuição de Código:**
+- **Controllers**: `src/controllers/` - 2 arquivos, 850 linhas
+- **Services**: `src/services/` - 3 arquivos, 597 linhas
+- **Routes**: `src/routes/` - 2 arquivos, 544 linhas  
+- **Data**: `src/data/` - 2 arquivos, 2008 linhas
+- **Middlewares**: `src/middlewares/` - 1 arquivo, 29 linhas
+- **Total Backend**: **4028 linhas de código**
+
+### **Funcionalidades por Arquivo:**
+- **app.js**: Configuração servidor, CORS, middlewares (121 linhas)
+- **carController.js**: Lógica de negócio, comparações (685 linhas)
+- **carApiServiceBrazil.js**: Algoritmos, filtros, preços (350 linhas)
+- **expandedBrazilianCars.js**: Base de dados brasileira (1997 linhas)
+- **carRoutes.js**: Definição de 17 endpoints REST (98 linhas)
+
+---
+
+## 💡 **PERGUNTAS TÉCNICAS ESPERADAS DO PROFESSOR**
+
+### **Sobre Arquitetura (THAY):**
+1. "Justifique a escolha do padrão MVC para este projeto"
+2. "Como configuraram CORS para suportar desenvolvimento em múltiplas portas?"
+3. "Explique a diferença entre middleware de aplicação e de rota"
+4. "Por que separaram rotas em arquivos diferentes?"
+
+### **Sobre Dados (DEBORAH):**
+1. "Como garantem que os preços gerados são realistas para o mercado brasileiro?"
+2. "Qual a estrutura de dados de um carro na base expandida?"
+3. "Como implementaram o enriquecimento automático de dados?"
+4. "Explique o processo de filtragem de carros por múltiplos critérios"
+
+### **Sobre API (THAIS):**
+1. "Quantos endpoints a API possui e suas responsabilidades?"
+2. "Como implementaram a documentação automática com Swagger?"
+3. "Explique a diferença entre busca simples e busca avançada"
+4. "Como tratam erros de validação nos endpoints?"
+
+### **Sobre Algoritmos (JOÃO VITOR):**
+1. "Detalhe o algoritmo de pontuação para comparação de carros"
+2. "Por que escolheram esses 4 critérios específicos e seus pesos?"
+3. "Como calculam estatísticas agregadas dos carros?"
+4. "Explique as conversões de unidades (MPG para km/l)"
+
+### **Sobre Performance (VICTOR):**
+1. "Como o middleware de erro global captura todas as exceções?"
+2. "Explique a implementação do sistema de cache"
+3. "Como monitoram a saúde da aplicação em produção?"
+4. "Quais otimizações de performance foram implementadas?"
+
+---
+
 **Comparate** - Desenvolvido com ❤️ para entusiastas automotivos brasileiros 
