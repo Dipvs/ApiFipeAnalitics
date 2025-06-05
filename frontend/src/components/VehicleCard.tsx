@@ -1,40 +1,6 @@
 import React, { useState } from 'react';
 import './VehicleCard.css';
-
-interface CarData {
-  id: string;
-  make: string;
-  model: string;
-  year: number;
-  price: number;
-  engine: {
-    type: string;
-    power_hp: number;
-    torque_nm: number;
-    cylinders: number;
-    displacement: number;
-  };
-  performance: {
-    max_speed_kmh: number;
-    acceleration_0_100_kmh: number;
-  };
-  kmpl_city: number;
-  kmpl_highway: number;
-  fuel_type: string;
-  transmission: string;
-  features: string[];
-  specifications: {
-    doors: number;
-    seats: number;
-    trunk_capacity: number;
-  };
-}
-
-interface VehicleCardProps {
-  vehicle: CarData;
-  onAddToComparison?: (vehicle: CarData) => void;
-  selected?: boolean;
-}
+import type { CarData, VehicleCardProps } from '../types/CarData';
 
 const VehicleCard: React.FC<VehicleCardProps> = ({ 
   vehicle, 
@@ -43,6 +9,46 @@ const VehicleCard: React.FC<VehicleCardProps> = ({
 }) => {
   const [imageLoading, setImageLoading] = useState(true);
   const [imageError, setImageError] = useState(false);
+
+  // Funções para normalizar dados do FIPE
+  const getMake = () => vehicle.brand || vehicle.make || 'Marca';
+  const getModel = () => vehicle.model || 'Modelo';
+  const getYear = () => vehicle.year || 2024;
+  const getPrice = () => vehicle.price || 0;
+  const getFuel = () => vehicle.fuel || vehicle.fuel_type || 'flex';
+  const getTransmission = () => vehicle.transmission || 'manual';
+  const getFeatures = () => vehicle.features || [];
+  
+  // Performance normalizada
+  const getPower = () => {
+    if (vehicle.performance?.power) return vehicle.performance.power;
+    if (vehicle.engine?.power_hp) return vehicle.engine.power_hp;
+    return 100;
+  };
+  
+  const getAcceleration = () => {
+    if (vehicle.performance?.acceleration) return parseFloat(vehicle.performance.acceleration);
+    if (vehicle.performance_old?.acceleration_0_100_kmh) return vehicle.performance_old.acceleration_0_100_kmh;
+    return 10.0;
+  };
+  
+  const getMaxSpeed = () => {
+    if (vehicle.performance?.maxSpeed) return vehicle.performance.maxSpeed;
+    if (vehicle.performance_old?.max_speed_kmh) return vehicle.performance_old.max_speed_kmh;
+    return 180;
+  };
+  
+  const getCityConsumption = () => {
+    if (vehicle.consumption?.city) return vehicle.consumption.city;
+    if (vehicle.kmpl_city) return vehicle.kmpl_city;
+    return 12;
+  };
+  
+  const getHighwayConsumption = () => {
+    if (vehicle.consumption?.highway) return vehicle.consumption.highway;
+    if (vehicle.kmpl_highway) return vehicle.kmpl_highway;
+    return 15;
+  };
 
   const formatFuelType = (fuelType: string) => {
     const fuelMap: { [key: string]: string } = {
@@ -67,6 +73,9 @@ const VehicleCard: React.FC<VehicleCardProps> = ({
   };
 
   const getCarImageUrl = () => {
+    // Se tem imagem do FIPE, usar ela
+    if (vehicle.image) return vehicle.image;
+    
     // URLs de imagens reais dos carros baseadas na marca e modelo
     const carImages: { [key: string]: string } = {
       // Toyota
@@ -131,19 +140,19 @@ const VehicleCard: React.FC<VehicleCardProps> = ({
       'jeep grand cherokee': 'https://images.unsplash.com/photo-1549317661-bd32c8ce0db2?w=500&h=300&fit=crop&crop=center'
     };
 
-    const carKey = `${vehicle.make.toLowerCase()} ${vehicle.model.toLowerCase()}`;
+    const carKey = `${getMake().toLowerCase()} ${getModel().toLowerCase()}`;
     return carImages[carKey] || `https://images.unsplash.com/photo-1552519507-da3b142c6e3d?w=500&h=300&fit=crop&crop=center&q=80`;
   };
 
   const getImageAlt = () => {
-    return `${vehicle.make} ${vehicle.model} ${vehicle.year}`;
+    return `${getMake()} ${getModel()} ${getYear()}`;
   };
 
-  const getPrice = () => {
+  const formatPrice = () => {
     return new Intl.NumberFormat('pt-BR', {
       style: 'currency',
       currency: 'BRL'
-    }).format(vehicle.price);
+    }).format(getPrice());
   };
 
   const handleImageLoad = () => {
@@ -218,7 +227,7 @@ const VehicleCard: React.FC<VehicleCardProps> = ({
         
         {/* Overlay com ano */}
         <div className="image-overlay">
-          <span className="car-year-badge">{vehicle.year}</span>
+          <span className="car-year-badge">{getYear()}</span>
         </div>
       </div>
 
@@ -227,11 +236,11 @@ const VehicleCard: React.FC<VehicleCardProps> = ({
         {/* Header com título e preço */}
         <div className="modern-card-header">
           <div className="car-title-section">
-            <h3 className="modern-car-title">{vehicle.make}</h3>
-            <p className="modern-car-model">{vehicle.model}</p>
+            <h3 className="modern-car-title">{getMake()}</h3>
+            <p className="modern-car-model">{getModel()}</p>
           </div>
           <div className="modern-price-section">
-            <span className="modern-price">{getPrice()}</span>
+            <span className="modern-price">{formatPrice()}</span>
           </div>
         </div>
 
@@ -241,23 +250,23 @@ const VehicleCard: React.FC<VehicleCardProps> = ({
             <span className="spec-icon">🏎️</span>
             <div className="spec-info">
               <span className="spec-label">Potência</span>
-              <span className="spec-value">{vehicle.engine.power_hp} HP</span>
+              <span className="spec-value">{getPower()} HP</span>
             </div>
           </div>
           
           <div className="modern-spec-item">
-            <span className="spec-icon">{getFuelIcon(vehicle.fuel_type)}</span>
+            <span className="spec-icon">{getFuelIcon(getFuel())}</span>
             <div className="spec-info">
               <span className="spec-label">Combustível</span>
-              <span className="spec-value">{formatFuelType(vehicle.fuel_type)}</span>
+              <span className="spec-value">{formatFuelType(getFuel())}</span>
             </div>
           </div>
           
           <div className="modern-spec-item">
-            <span className="spec-icon">{getTransmissionIcon(vehicle.transmission)}</span>
+            <span className="spec-icon">{getTransmissionIcon(getTransmission())}</span>
             <div className="spec-info">
               <span className="spec-label">Câmbio</span>
-              <span className="spec-value">{formatTransmission(vehicle.transmission)}</span>
+              <span className="spec-value">{formatTransmission(getTransmission())}</span>
             </div>
           </div>
           
@@ -265,7 +274,7 @@ const VehicleCard: React.FC<VehicleCardProps> = ({
             <span className="spec-icon">📊</span>
             <div className="spec-info">
               <span className="spec-label">Consumo</span>
-              <span className="spec-value">{vehicle.kmpl_city} km/l</span>
+              <span className="spec-value">{getCityConsumption()} km/l</span>
             </div>
           </div>
         </div>
@@ -275,21 +284,21 @@ const VehicleCard: React.FC<VehicleCardProps> = ({
           <div className="performance-item">
             <span className="perf-icon">🏁</span>
             <span className="perf-label">Vel. Máx:</span>
-            <span className="perf-value">{vehicle.performance.max_speed_kmh} km/h</span>
+            <span className="perf-value">{getMaxSpeed()} km/h</span>
           </div>
           <div className="performance-item">
             <span className="perf-icon">⚡</span>
             <span className="perf-label">0-100:</span>
-            <span className="perf-value">{vehicle.performance.acceleration_0_100_kmh}s</span>
+            <span className="perf-value">{getAcceleration()}s</span>
           </div>
         </div>
 
         {/* Características destacadas */}
-        {vehicle.features && vehicle.features.length > 0 && (
+        {getFeatures().length > 0 && (
           <div className="modern-features">
             <h4 className="features-title">✨ Destaques</h4>
             <div className="features-tags">
-              {vehicle.features.slice(0, 3).map((feature, index) => (
+              {getFeatures().slice(0, 3).map((feature, index) => (
                 <span key={index} className="feature-tag">{feature}</span>
               ))}
             </div>

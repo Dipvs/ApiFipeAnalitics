@@ -9,18 +9,20 @@
 
 body {
   font-family: 'Rajdhani', 'Arial', sans-serif;
-  background: #000;
+  background: transparent;
   color: #fff;
   overflow-x: hidden;
+  min-height: 100vh;
 }
 
 .App {
   position: relative;
   min-height: 100vh;
   width: 100%;
+  background: transparent;
 }
 
-/* Vídeo de fundo */
+/* Vídeo de fundo - configuração fixa e responsiva */
 .background-video {
   position: fixed;
   top: 0;
@@ -29,6 +31,36 @@ body {
   height: 100%;
   object-fit: cover;
   z-index: -2;
+  opacity: 1;
+  /* Garantir que o vídeo seja sempre visível */
+  visibility: visible;
+  display: block;
+  /* Garantir carregamento em diferentes navegadores */
+  -webkit-media-controls {
+    display: none !important;
+  }
+  -webkit-media-controls-enclosure {
+    display: none !important;
+  }
+}
+
+/* Garantir que o vídeo cubra toda a tela em dispositivos móveis */
+@media (max-aspect-ratio: 16/9) {
+  .background-video {
+    height: 100vh;
+    width: auto;
+    left: 50%;
+    transform: translateX(-50%);
+  }
+}
+
+@media (min-aspect-ratio: 16/9) {
+  .background-video {
+    width: 100vw;
+    height: auto;
+    top: 50%;
+    transform: translateY(-50%);
+  }
 }
 
 .video-overlay {
@@ -37,8 +69,9 @@ body {
   left: 0;
   width: 100%;
   height: 100%;
-  background: rgba(0, 0, 0, 0.5);
+  background: rgba(0, 0, 0, 0.2);
   z-index: -1;
+  pointer-events: none;
 }
 
 /* Header invisível */
@@ -500,8 +533,8 @@ body {
 .main-content {
   position: relative;
   z-index: 1;
-  background: rgba(0, 0, 0, 0.8);
-  backdrop-filter: blur(10px);
+  background: transparent;
+  backdrop-filter: none;
 }
 
 .container {
@@ -516,6 +549,10 @@ body {
 .stats-section {
   padding: 4rem 0;
   border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  /* Remover fundos para mostrar o vídeo */
+  background: transparent;
+  backdrop-filter: none;
+  color: #ffffff;
 }
 
 .search-section h2,
@@ -526,7 +563,7 @@ body {
   margin-bottom: 3rem;
   text-align: center;
   color: #00ff88;
-  text-shadow: 0 0 20px rgba(0, 255, 136, 0.3);
+  text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.8), 0 0 20px rgba(0, 255, 136, 0.3);
 }
 
 /* Grid de comparação */
@@ -539,12 +576,14 @@ body {
 
 .comparison-card {
   background: rgba(255, 255, 255, 0.05);
+  background-color: rgba(30, 30, 30, 0.9); /* Fundo garantido */
   border: 1px solid rgba(0, 255, 136, 0.3);
   border-radius: 20px;
   padding: 2rem;
   position: relative;
   backdrop-filter: blur(10px);
   transition: all 0.3s ease;
+  color: #ffffff;
 }
 
 .comparison-card:hover {
@@ -578,12 +617,14 @@ body {
   font-weight: 700;
   margin-bottom: 1rem;
   color: #00ff88;
+  text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.8);
 }
 
 .car-price {
   font-size: 1.3rem;
   font-weight: 600;
   color: #00c8ff;
+  text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.8);
   margin-bottom: 1.5rem;
 }
 
@@ -598,12 +639,14 @@ body {
   font-weight: 600;
   margin-bottom: 0.5rem;
   color: #fff;
+  text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.8);
 }
 
 .detail-section p,
 .detail-section li {
   font-size: 0.9rem;
-  color: rgba(255, 255, 255, 0.8);
+  color: rgba(255, 255, 255, 0.9);
+  text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.7);
   margin-bottom: 0.3rem;
 }
 
@@ -628,12 +671,14 @@ body {
 
 .stat-card {
   background: rgba(255, 255, 255, 0.05);
+  background-color: rgba(30, 30, 30, 0.9); /* Fundo garantido */
   border: 1px solid rgba(0, 255, 136, 0.3);
   border-radius: 20px;
   padding: 2rem;
   text-align: center;
   backdrop-filter: blur(10px);
   transition: all 0.3s ease;
+  color: #ffffff;
 }
 
 .stat-card:hover {
@@ -648,13 +693,14 @@ body {
   font-weight: 900;
   color: #00ff88;
   margin-bottom: 1rem;
-  text-shadow: 0 0 20px rgba(0, 255, 136, 0.5);
+  text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.8), 0 0 20px rgba(0, 255, 136, 0.5);
 }
 
 .stat-label {
   font-size: 1.2rem;
   font-weight: 500;
-  color: rgba(255, 255, 255, 0.8);
+  color: rgba(255, 255, 255, 0.9);
+  text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.7);
 }
 
 /* Footer */
@@ -776,4 +822,40 @@ body {
 
 ::-webkit-scrollbar-thumb:hover {
   background: linear-gradient(45deg, #00c8ff, #ff0080);
+}
+
+/* Video Status Indicator */
+.video-status {
+  position: fixed;
+  bottom: 20px;
+  left: 20px;
+  z-index: 1000;
+  pointer-events: none;
+}
+
+.status-indicator {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 1rem;
+  background: rgba(0, 0, 0, 0.8);
+  backdrop-filter: blur(10px);
+  border-radius: 25px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  color: #ffffff;
+  font-size: 0.9rem;
+  font-weight: 500;
+  transition: all 0.3s ease;
+}
+
+.status-indicator.loaded {
+  border-color: rgba(0, 255, 136, 0.5);
+  background: rgba(0, 255, 136, 0.1);
+  color: #00ff88;
+}
+
+.status-indicator.loading {
+  border-color: rgba(255, 206, 84, 0.5);
+  background: rgba(255, 206, 84, 0.1);
+  color: #ffce54;
 } 

@@ -1,15 +1,8 @@
 const axios = require('axios');
 const { getCarImage, formatPriceBRL, formatConsumption, convertMpgToKmL } = require('./carImageService');
 
-// Configuração das APIs
-const API_NINJAS_KEY = process.env.CAR_API_KEY || 'LzpduVGllKcLyQmewjrJRw==IDvBbzjhCamAuczc';
-const CARAPI_KEY = process.env.CARAPI_KEY || 'YOUR_CARAPI_KEY_HERE';
-const CARSXE_KEY = process.env.CARSXE_KEY || 'YOUR_CARSXE_KEY_HERE';
-
-// URLs base das APIs
-const API_NINJAS_BASE = 'https://api.api-ninjas.com/v1';
-const CARAPI_BASE = 'https://carapi.app/api';
-const CARSXE_BASE = 'https://api.carsxe.com';
+// Configuração da API FIPE
+const FIPE_BASE_URL = 'https://parallelum.com.br/fipe/api/v2';
 
 // Cache simples em memória (em produção usar Redis)
 const cache = {
@@ -32,645 +25,764 @@ const cache = {
   clear: () => cache.data.clear()
 };
 
-// Headers para APIs
-const getApiHeaders = (service) => {
-  switch (service) {
-    case 'ninjas':
-      return { 'X-API-Key': API_NINJAS_KEY };
-    case 'carapi':
-      return { 'Authorization': `Bearer ${CARAPI_KEY}` };
-    case 'carsxe':
-      return { 'api-key': CARSXE_KEY };
-    default:
-      return {};
-  }
+// Tipos de veículos FIPE
+const VEHICLE_TYPES = {
+  'carros': 'cars',
+  'motos': 'motorcycles', 
+  'caminhoes': 'trucks'
 };
 
-// Função para buscar carros da API Ninjas
-async function searchCarsFromNinjas(filters = {}) {
+// Função para buscar marcas da FIPE
+async function getFipeBrands(vehicleType = 'cars') {
   try {
-    console.log('🔍 Buscando carros na API Ninjas...');
+    console.log(`🔍 Buscando marcas FIPE para ${vehicleType}...`);
     
-    const params = {};
-    if (filters.make) params.make = filters.make.toLowerCase();
-    if (filters.model) params.model = filters.model.toLowerCase();
-    if (filters.year) params.year = filters.year;
-    if (filters.fuel_type) {
-      // Converter tipos brasileiros para API
-      const fuelMapping = {
-        'flex': 'gas',
-        'gasolina': 'gas',
-        'diesel': 'diesel',
-        'eletrico': 'electricity',
-        'hibrido': 'gas'
-      };
-      params.fuel_type = fuelMapping[filters.fuel_type.toLowerCase()] || 'gas';
-    }
-    if (filters.transmission) params.transmission = filters.transmission.toLowerCase();
-    if (filters.cylinders) params.cylinders = filters.cylinders;
-    
-    // REMOVER LIMIT - não disponível no plano gratuito
-    // params.limit = Math.min(parseInt(filters.limit) || 10, 50);
-
-    const cacheKey = `ninjas_${JSON.stringify(params)}`;
-    const cached = cache.get(cacheKey);
-    if (cached) {
-      console.log('📦 Dados encontrados no cache');
-      return cached;
-    }
-
-    const response = await axios.get(`${API_NINJAS_BASE}/cars`, {
-      params,
-      headers: getApiHeaders('ninjas'),
-      timeout: 10000
-    });
-
-    console.log(`✅ API Ninjas retornou ${response.data.length} carros`);
-    
-    // Aplicar limite manualmente após receber os dados
-    const limit = parseInt(filters.limit) || 10;
-    const limitedData = response.data.slice(0, limit);
-    
-    const enrichedCars = limitedData.map(car => enrichCarDataFromAPI(car, 'ninjas'));
-    
-    const result = {
-      success: true,
-      data: enrichedCars,
-      total: enrichedCars.length,
-      source: 'api_ninjas',
-      message: `${enrichedCars.length} veículos encontrados via API Ninjas`
-    };
-
-    cache.set(cacheKey, result);
-    return result;
-
-  } catch (error) {
-    console.error('❌ Erro na API Ninjas:', error.message);
-    if (error.response) {
-      console.error('📋 Status:', error.response.status);
-      console.error('📋 Data:', error.response.data);
-    }
-    throw error;
-  }
-}
-
-// Função para buscar carros da Car API
-async function searchCarsFromCarAPI(filters = {}) {
-  try {
-    console.log('🔍 Buscando carros na Car API...');
-    
-    let url = `${CARAPI_BASE}/trims`;
-    const params = {};
-    
-    if (filters.make) params.make = filters.make;
-    if (filters.model) params.model = filters.model;
-    if (filters.year) params.year = filters.year;
-    if (filters.limit) params.limit = Math.min(parseInt(filters.limit), 50);
-
-    const cacheKey = `carapi_${JSON.stringify(params)}`;
-    const cached = cache.get(cacheKey);
-    if (cached) {
-      console.log('📦 Dados encontrados no cache');
-      return cached;
-    }
-
-    const response = await axios.get(url, {
-      params,
-      headers: getApiHeaders('carapi'),
-      timeout: 10000
-    });
-
-    console.log(`✅ Car API retornou ${response.data.data?.length || 0} carros`);
-    
-    const cars = response.data.data || [];
-    const enrichedCars = cars.map(car => enrichCarDataFromAPI(car, 'carapi'));
-    
-    const result = {
-      success: true,
-      data: enrichedCars,
-      total: enrichedCars.length,
-      source: 'car_api',
-      message: `${enrichedCars.length} veículos encontrados via Car API`
-    };
-
-    cache.set(cacheKey, result);
-    return result;
-
-  } catch (error) {
-    console.error('❌ Erro na Car API:', error.message);
-    throw error;
-  }
-}
-
-// Função para buscar marcas das APIs
-async function getAllMakesFromAPIs() {
-  try {
-    console.log('🔍 Buscando marcas das APIs...');
-    
-    const cacheKey = 'all_makes';
+    const cacheKey = `fipe_brands_${vehicleType}`;
     const cached = cache.get(cacheKey);
     if (cached) {
       console.log('📦 Marcas encontradas no cache');
       return cached;
     }
 
-    let makes = new Set();
+    const response = await axios.get(`${FIPE_BASE_URL}/${vehicleType}/brands`, {
+      timeout: 10000
+    });
 
-    // Tentar API Ninjas primeiro
-    try {
-      const ninjasResponse = await axios.get(`${API_NINJAS_BASE}/carmakes`, {
-        headers: getApiHeaders('ninjas'),
-        timeout: 8000
-      });
-      
-      if (ninjasResponse.data && Array.isArray(ninjasResponse.data)) {
-        ninjasResponse.data.forEach(make => makes.add(make));
-        console.log(`✅ API Ninjas: ${ninjasResponse.data.length} marcas`);
-      }
-    } catch (error) {
-      console.log('⚠️ API Ninjas indisponível para marcas');
-    }
-
-    // Tentar Car API como fallback
-    try {
-      const carApiResponse = await axios.get(`${CARAPI_BASE}/makes`, {
-        headers: getApiHeaders('carapi'),
-        timeout: 8000
-      });
-      
-      if (carApiResponse.data?.data && Array.isArray(carApiResponse.data.data)) {
-        carApiResponse.data.data.forEach(makeObj => {
-          if (makeObj.name) makes.add(makeObj.name);
-        });
-        console.log(`✅ Car API: ${carApiResponse.data.data.length} marcas adicionais`);
-      }
-    } catch (error) {
-      console.log('⚠️ Car API indisponível para marcas');
-    }
-
-    // Adicionar marcas brasileiras populares como fallback
-    const brazilianMakes = [
-      'Fiat', 'Volkswagen', 'Chevrolet', 'Ford', 'Toyota', 
-      'Honda', 'Hyundai', 'Nissan', 'Renault', 'Jeep'
-    ];
-    brazilianMakes.forEach(make => makes.add(make));
-
-    const makesArray = Array.from(makes).sort();
+    console.log(`✅ FIPE retornou ${response.data.length} marcas para ${vehicleType}`);
     
     const result = {
       success: true,
-      data: makesArray,
-      total: makesArray.length,
-      source: 'multiple_apis',
-      message: `${makesArray.length} marcas disponíveis`
+      data: response.data,
+      source: 'fipe_api',
+      total: response.data.length
     };
 
-    cache.set(cacheKey, result, 7200000); // Cache por 2 horas
+    // Cache por 2 horas (marcas mudam pouco)
+    cache.set(cacheKey, result, 7200000);
     return result;
 
   } catch (error) {
-    console.error('❌ Erro ao buscar marcas:', error.message);
+    console.error('❌ Erro ao buscar marcas FIPE:', error.message);
+    throw error;
+  }
+}
+
+// Função para buscar modelos por marca
+async function getFipeModels(vehicleType = 'cars', brandId) {
+  try {
+    console.log(`🔍 Buscando modelos FIPE para marca ${brandId}...`);
     
-    // Fallback com marcas básicas
-    const fallbackMakes = [
-      'Fiat', 'Volkswagen', 'Chevrolet', 'Ford', 'Toyota', 
-      'Honda', 'Hyundai', 'Nissan', 'Renault', 'Jeep'
+    const cacheKey = `fipe_models_${vehicleType}_${brandId}`;
+    const cached = cache.get(cacheKey);
+    if (cached) {
+      console.log('📦 Modelos encontrados no cache');
+      return cached;
+    }
+
+    const response = await axios.get(`${FIPE_BASE_URL}/${vehicleType}/brands/${brandId}/models`, {
+      timeout: 10000
+    });
+
+    console.log(`✅ FIPE retornou ${response.data.length} modelos`);
+    
+    const result = {
+      success: true,
+      data: response.data,
+      source: 'fipe_api',
+      total: response.data.length
+    };
+
+    // Cache por 1 hora
+    cache.set(cacheKey, result);
+    return result;
+
+  } catch (error) {
+    console.error('❌ Erro ao buscar modelos FIPE:', error.message);
+    throw error;
+  }
+}
+
+// Função para buscar anos por modelo
+async function getFipeYears(vehicleType = 'cars', brandId, modelId) {
+  try {
+    console.log(`🔍 Buscando anos FIPE para modelo ${modelId}...`);
+    
+    const cacheKey = `fipe_years_${vehicleType}_${brandId}_${modelId}`;
+    const cached = cache.get(cacheKey);
+    if (cached) {
+      console.log('📦 Anos encontrados no cache');
+      return cached;
+    }
+
+    const response = await axios.get(`${FIPE_BASE_URL}/${vehicleType}/brands/${brandId}/models/${modelId}/years`, {
+      timeout: 10000
+    });
+
+    console.log(`✅ FIPE retornou ${response.data.length} anos`);
+    
+    const result = {
+      success: true,
+      data: response.data,
+      source: 'fipe_api',
+      total: response.data.length
+    };
+
+    cache.set(cacheKey, result);
+    return result;
+
+  } catch (error) {
+    console.error('❌ Erro ao buscar anos FIPE:', error.message);
+    throw error;
+  }
+}
+
+// Função para buscar detalhes completos do veículo
+async function getFipeVehicleDetails(vehicleType = 'cars', brandId, modelId, yearId) {
+  try {
+    console.log(`🔍 Buscando detalhes FIPE completos...`);
+    
+    const cacheKey = `fipe_details_${vehicleType}_${brandId}_${modelId}_${yearId}`;
+    const cached = cache.get(cacheKey);
+    if (cached) {
+      console.log('📦 Detalhes encontrados no cache');
+      return cached;
+    }
+
+    const response = await axios.get(`${FIPE_BASE_URL}/${vehicleType}/brands/${brandId}/models/${modelId}/years/${yearId}`, {
+      timeout: 10000
+    });
+
+    const vehicleData = response.data;
+    console.log(`✅ FIPE retornou dados do veículo: ${vehicleData.brand} ${vehicleData.model}`);
+    
+    // Enriquecer dados com informações brasileiras
+    const enrichedData = enrichFipeVehicleData(vehicleData);
+    
+    const result = {
+      success: true,
+      data: enrichedData,
+      source: 'fipe_api'
+    };
+
+    cache.set(cacheKey, result);
+    return result;
+
+  } catch (error) {
+    console.error('❌ Erro ao buscar detalhes FIPE:', error.message);
+    throw error;
+  }
+}
+
+// Função para buscar veículos por código FIPE
+async function getFipeByCode(fipeCode, vehicleType = 'cars') {
+  try {
+    console.log(`🔍 Buscando veículo por código FIPE: ${fipeCode}...`);
+    
+    const cacheKey = `fipe_code_${fipeCode}_${vehicleType}`;
+    const cached = cache.get(cacheKey);
+    if (cached) {
+      console.log('📦 Veículo encontrado no cache');
+      return cached;
+    }
+
+    // Buscar anos disponíveis para o código FIPE
+    const yearsResponse = await axios.get(`${FIPE_BASE_URL}/${vehicleType}/${fipeCode}/years`, {
+      timeout: 10000
+    });
+
+    if (yearsResponse.data.length === 0) {
+      throw new Error('Código FIPE não encontrado');
+    }
+
+    // Pegar o primeiro ano disponível (mais recente geralmente)
+    const yearId = yearsResponse.data[0].code;
+    
+    // Buscar detalhes do veículo
+    const detailsResponse = await axios.get(`${FIPE_BASE_URL}/${vehicleType}/${fipeCode}/years/${yearId}`, {
+      timeout: 10000
+    });
+
+    const vehicleData = detailsResponse.data;
+    console.log(`✅ FIPE retornou dados por código: ${vehicleData.brand} ${vehicleData.model}`);
+    
+    const enrichedData = enrichFipeVehicleData(vehicleData);
+    
+    const result = {
+      success: true,
+      data: enrichedData,
+      source: 'fipe_api'
+    };
+
+    cache.set(cacheKey, result);
+    return result;
+
+  } catch (error) {
+    console.error('❌ Erro ao buscar por código FIPE:', error.message);
+    throw error;
+  }
+}
+
+// Função principal de busca inteligente
+async function smartCarSearch(filters = {}) {
+  try {
+    console.log('🔍 Iniciando busca inteligente FIPE com filtros:', filters);
+    
+    const vehicleType = filters.type || 'cars';
+    
+    // Se tem código FIPE, buscar diretamente
+    if (filters.fipeCode) {
+      return await getFipeByCode(filters.fipeCode, vehicleType);
+    }
+    
+    // Busca por marca específica
+    if (filters.make && !filters.model) {
+      return await searchVehiclesByMake(filters.make, vehicleType, filters);
+    }
+    
+    // Busca por marca e modelo
+    if (filters.make && filters.model) {
+      return await searchVehiclesByMakeModel(filters.make, filters.model, vehicleType, filters);
+    }
+    
+    // Busca geral - retornar algumas marcas populares
+    return await getPopularBrands(vehicleType);
+
+  } catch (error) {
+    console.error('❌ Erro na busca FIPE:', error.message);
+    
+    // Fallback com dados gerados
+    return generateFallbackCars(filters);
+  }
+}
+
+// Buscar veículos por marca
+async function searchVehiclesByMake(makeName, vehicleType = 'cars', filters = {}) {
+  try {
+    // Buscar todas as marcas
+    const brandsResult = await getFipeBrands(vehicleType);
+    if (!brandsResult.success) throw new Error('Erro ao buscar marcas');
+    
+    // Encontrar marca correspondente
+    const brand = brandsResult.data.find(b => 
+      b.name.toLowerCase().includes(makeName.toLowerCase()) ||
+      makeName.toLowerCase().includes(b.name.toLowerCase())
+    );
+    
+    if (!brand) {
+      throw new Error(`Marca ${makeName} não encontrada`);
+    }
+    
+    // Buscar modelos da marca
+    const modelsResult = await getFipeModels(vehicleType, brand.code);
+    if (!modelsResult.success) throw new Error('Erro ao buscar modelos');
+    
+    // Converter modelos para formato padrão
+    const limit = parseInt(filters.limit) || 10;
+    const vehicles = modelsResult.data.slice(0, limit).map(model => 
+      createVehicleFromFipeModel(brand, model, vehicleType)
+    );
+
+      return {
+        success: true,
+      data: vehicles,
+      total: vehicles.length,
+      source: 'fipe_api',
+      message: `${vehicles.length} veículos encontrados para ${brand.name}`
+    };
+    
+    } catch (error) {
+    console.error('❌ Erro ao buscar por marca:', error.message);
+    throw error;
+  }
+}
+
+// Buscar veículos por marca e modelo
+async function searchVehiclesByMakeModel(makeName, modelName, vehicleType = 'cars', filters = {}) {
+  try {
+    // Buscar marca
+    const brandsResult = await getFipeBrands(vehicleType);
+    const brand = brandsResult.data.find(b => 
+      b.name.toLowerCase().includes(makeName.toLowerCase())
+    );
+    
+    if (!brand) throw new Error(`Marca ${makeName} não encontrada`);
+    
+    // Buscar modelos
+    const modelsResult = await getFipeModels(vehicleType, brand.code);
+    const model = modelsResult.data.find(m => 
+      m.name.toLowerCase().includes(modelName.toLowerCase())
+    );
+    
+    if (!model) throw new Error(`Modelo ${modelName} não encontrado`);
+    
+    // Buscar anos disponíveis
+    const yearsResult = await getFipeYears(vehicleType, brand.code, model.code);
+    
+    if (!yearsResult.success || yearsResult.data.length === 0) {
+      throw new Error('Nenhum ano encontrado para este modelo');
+    }
+    
+    // Buscar detalhes dos anos mais recentes
+    const limit = parseInt(filters.limit) || 5;
+    const recentYears = yearsResult.data.slice(0, limit);
+    
+    const vehicles = [];
+    for (const year of recentYears) {
+      try {
+        const detailsResult = await getFipeVehicleDetails(vehicleType, brand.code, model.code, year.code);
+        if (detailsResult.success) {
+          vehicles.push(detailsResult.data);
+        }
+      } catch (err) {
+        console.log(`⚠️ Erro ao buscar detalhes do ano ${year.name}:`, err.message);
+      }
+    }
+      
+      return {
+        success: true,
+      data: vehicles,
+      total: vehicles.length,
+      source: 'fipe_api',
+      message: `${vehicles.length} versões encontradas para ${brand.name} ${model.name}`
+    };
+    
+    } catch (error) {
+    console.error('❌ Erro ao buscar por marca/modelo:', error.message);
+    throw error;
+  }
+}
+
+// Obter marcas populares
+async function getPopularBrands(vehicleType = 'cars') {
+  try {
+    const brandsResult = await getFipeBrands(vehicleType);
+    if (!brandsResult.success) throw new Error('Erro ao buscar marcas');
+    
+    // Marcas brasileiras populares
+    const popularBrandNames = [
+      'Volkswagen', 'Chevrolet', 'Fiat', 'Ford', 'Toyota', 
+      'Honda', 'Hyundai', 'Nissan', 'Renault', 'Peugeot'
     ];
     
-    return {
-      success: true,
-      data: fallbackMakes,
-      total: fallbackMakes.length,
-      source: 'fallback',
-      message: `${fallbackMakes.length} marcas (fallback)`
+    const popularBrands = brandsResult.data.filter(brand =>
+      popularBrandNames.some(popular => 
+        brand.name.toLowerCase().includes(popular.toLowerCase())
+      )
+    );
+
+      return {
+        success: true,
+      data: popularBrands.slice(0, 10),
+      total: popularBrands.length,
+      source: 'fipe_api',
+      message: 'Marcas populares no Brasil'
     };
+    
+    } catch (error) {
+    console.error('❌ Erro ao buscar marcas populares:', error.message);
+    throw error;
   }
 }
 
-// Função para enriquecer dados de carros vindos das APIs
-function enrichCarDataFromAPI(car, source) {
-  const enrichedCar = { ...car };
+// Criar veículo a partir de modelo FIPE
+function createVehicleFromFipeModel(brand, model, vehicleType) {
+  const currentYear = new Date().getFullYear();
+  const estimatedYear = currentYear - Math.floor(Math.random() * 10); // Estimar ano
   
-  // Normalizar dados baseado na fonte
-  if (source === 'ninjas') {
-    enrichedCar.make = car.make || '';
-    enrichedCar.model = car.model || '';
-    enrichedCar.year = car.year || new Date().getFullYear();
-    enrichedCar.class = car.class || 'sedan';
-    enrichedCar.fuel_type = convertFuelType(car.fuel_type);
-    enrichedCar.transmission = car.transmission === 'a' ? 'automatic' : 'manual';
-    
-    // Converter MPG para km/l - verificar se são valores numéricos (não mensagens premium)
-    const cityMpg = typeof car.city_mpg === 'number' ? car.city_mpg : null;
-    const highwayMpg = typeof car.highway_mpg === 'number' ? car.highway_mpg : null;
-    const combinationMpg = typeof car.combination_mpg === 'number' ? car.combination_mpg : null;
-    
-    enrichedCar.consumption = {
-      city_kmpl: cityMpg ? Math.round(cityMpg * 0.425 * 10) / 10 : 12,
-      highway_kmpl: highwayMpg ? Math.round(highwayMpg * 0.425 * 10) / 10 : 16,
-      combined_kmpl: combinationMpg ? Math.round(combinationMpg * 0.425 * 10) / 10 : 14
-    };
-    
-    enrichedCar.engine = {
-      type: enrichedCar.fuel_type,
-      power_hp: estimatePowerFromDisplacement(car.displacement),
-      torque_nm: estimateTorqueFromDisplacement(car.displacement),
-      cylinders: car.cylinders || 4,
-      displacement: car.displacement || 1.6
-    };
-  } 
-  else if (source === 'carapi') {
-    enrichedCar.make = car.make?.name || car.make || '';
-    enrichedCar.model = car.model?.name || car.model || '';
-    enrichedCar.year = car.year || new Date().getFullYear();
-    enrichedCar.class = normalizeVehicleClass(car.body_styles?.[0] || 'sedan');
-    enrichedCar.fuel_type = 'flex'; // Padrão brasileiro
-    enrichedCar.transmission = 'automatic';
-    
-    // Dados padrão quando não disponíveis
-    enrichedCar.consumption = {
-      city_kmpl: 10,
-      highway_kmpl: 14,
-      combined_kmpl: 12
-    };
-    
-    enrichedCar.engine = {
-      type: 'flex',
-      power_hp: 130,
-      torque_nm: 170,
-      cylinders: 4,
-      displacement: 1.8
-    };
-  }
-
-  // Gerar preço brasileiro baseado na marca e ano
-  enrichedCar.price = generateBrazilianPrice(enrichedCar.make, enrichedCar.model, enrichedCar.year);
-  enrichedCar.currency = 'BRL';
-  enrichedCar.formatted_price = new Intl.NumberFormat('pt-BR', {
-    style: 'currency',
-    currency: 'BRL'
-  }).format(enrichedCar.price);
-
-  // Performance estimada
-  if (!enrichedCar.performance) {
-    enrichedCar.performance = {
-      max_speed_kmh: estimateMaxSpeed(enrichedCar.engine.power_hp),
-      acceleration_0_100_kmh: estimateAcceleration(enrichedCar.engine.power_hp, enrichedCar.class)
-    };
-  }
-
-  // Especificações padrão
-  enrichedCar.specifications = {
-    doors: estimateDoorsFromClass(enrichedCar.class),
-    seats: estimateSeatsFromClass(enrichedCar.class),
-    trunk_capacity: estimateTrunkCapacity(enrichedCar.class)
+  return {
+    id: `${brand.code}_${model.code}`,
+    brand: brand.name,
+    model: model.name,
+    year: estimatedYear,
+    price: generateBrazilianPrice(brand.name, model.name, estimatedYear),
+    fipeCode: `${brand.code}${model.code}`,
+    vehicleType: vehicleType,
+    fuel: 'Flex',
+    transmission: 'Manual',
+    doors: estimateDoorsFromType(vehicleType),
+    seats: estimateSeatsFromType(vehicleType),
+    origin: getBrandOrigin(brand.name),
+    warranty: getBrandWarranty(brand.name),
+    features: getBrazilianFeatures(vehicleType, 50000),
+    consumption: {
+      city: Math.floor(Math.random() * 5) + 8,
+      highway: Math.floor(Math.random() * 5) + 12,
+      combined: Math.floor(Math.random() * 5) + 10
+    },
+    performance: {
+      power: Math.floor(Math.random() * 100) + 80,
+      torque: Math.floor(Math.random() * 100) + 120,
+      acceleration: (Math.random() * 5 + 8).toFixed(1),
+      maxSpeed: Math.floor(Math.random() * 50) + 160
+    },
+    image: getCarImage(brand.name, model.name)
   };
-
-  // Informações brasileiras
-  enrichedCar.origin = getBrandOrigin(enrichedCar.make);
-  enrichedCar.warranty = getBrandWarranty(enrichedCar.make);
-  enrichedCar.safety_rating = Math.floor(Math.random() * 2) + 4; // 4 ou 5 estrelas
-  
-  // Features padrão brasileiras
-  enrichedCar.features = getBrazilianFeatures(enrichedCar.class, enrichedCar.price);
-  
-  // Imagem
-  enrichedCar.image = `https://via.placeholder.com/400x300/333/fff?text=${encodeURIComponent(enrichedCar.make + ' ' + enrichedCar.model)}`;
-
-  return enrichedCar;
 }
 
-// Funções auxiliares para estimativas e conversões
-function convertFuelType(apiFuelType) {
-  const fuelMapping = {
-    'gas': 'flex',
-    'gasoline': 'gasolina',
-    'diesel': 'diesel',
-    'electricity': 'eletrico',
-    'hybrid': 'hibrido'
+// Enriquecer dados do veículo FIPE
+function enrichFipeVehicleData(fipeData) {
+  // Converter preço FIPE para número
+  const priceString = fipeData.price || 'R$ 0,00';
+  const priceNumber = parseFloat(priceString.replace(/[R$\s.]/g, '').replace(',', '.')) || 0;
+  
+  // Extrair ano do modelo
+  const modelYear = fipeData.modelYear || new Date().getFullYear();
+  
+  // Normalizar combustível
+  const fuel = normalizeFuelType(fipeData.fuel || 'Gasolina');
+  
+      return {
+    id: fipeData.codeFipe || Math.random().toString(36).substr(2, 9),
+    brand: fipeData.brand || 'Marca não informada',
+    model: fipeData.model || 'Modelo não informado',
+    year: modelYear,
+    price: formatPriceBRL(priceNumber),
+    priceNumber: priceNumber,
+    fipeCode: fipeData.codeFipe,
+    vehicleType: getVehicleTypeFromFipe(fipeData.vehicleType),
+    fuel: fuel,
+    fuelAcronym: fipeData.fuelAcronym || 'G',
+    transmission: estimateTransmission(fuel),
+    doors: estimateDoorsFromModel(fipeData.model),
+    seats: estimateSeatsFromModel(fipeData.model),
+    origin: getBrandOrigin(fipeData.brand),
+    warranty: getBrandWarranty(fipeData.brand),
+    features: getBrazilianFeatures(fipeData.model, priceNumber),
+    consumption: estimateConsumption(fuel, modelYear),
+    performance: estimatePerformance(fipeData.model, modelYear, fuel),
+    image: getCarImage(fipeData.brand, fipeData.model),
+    referenceMonth: fipeData.referenceMonth || 'Atual',
+    priceHistory: fipeData.priceHistory || []
   };
-  return fuelMapping[apiFuelType] || 'flex';
 }
 
-function normalizeVehicleClass(bodyStyle) {
-  const classMapping = {
-    'sedan': 'sedan',
-    'coupe': 'coupe',
-    'suv': 'suv',
-    'hatchback': 'hatch',
-    'pickup': 'pickup',
-    'wagon': 'wagon',
-    'convertible': 'conversivel'
+// Funções auxiliares
+function normalizeFuelType(fipeFuel) {
+  const fuelMap = {
+    'Gasolina': 'Gasolina',
+    'Álcool': 'Etanol', 
+    'Diesel': 'Diesel',
+    'Flex': 'Flex',
+    'Gas': 'Gasolina'
   };
-  return classMapping[bodyStyle.toLowerCase()] || 'sedan';
+  return fuelMap[fipeFuel] || 'Flex';
 }
 
-function estimatePowerFromDisplacement(displacement) {
-  if (!displacement) return 120;
-  return Math.round(displacement * 70); // Estimativa: 70 HP por litro
+function getVehicleTypeFromFipe(vehicleType) {
+  const typeMap = {
+    1: 'Carro',
+    2: 'Moto', 
+    3: 'Caminhão'
+  };
+  return typeMap[vehicleType] || 'Carro';
 }
 
-function estimateTorqueFromDisplacement(displacement) {
-  if (!displacement) return 160;
-  return Math.round(displacement * 100); // Estimativa: 100 Nm por litro
+function estimateTransmission(fuel) {
+  // Carros mais novos e flex tendem a ser automáticos
+  return Math.random() > 0.6 ? 'Automático' : 'Manual';
 }
 
-function estimateMaxSpeed(powerHP) {
-  return Math.round(120 + (powerHP * 0.4)); // Estimativa baseada na potência
+function estimateDoorsFromModel(model) {
+  if (model.toLowerCase().includes('2p') || model.toLowerCase().includes('conversivel')) return 2;
+  if (model.toLowerCase().includes('4p') || model.toLowerCase().includes('sedan')) return 4;
+  return Math.random() > 0.7 ? 2 : 4;
 }
 
-function estimateAcceleration(powerHP, vehicleClass) {
-  let baseAcceleration = 12;
-  if (vehicleClass === 'suv') baseAcceleration = 14;
-  if (vehicleClass === 'coupe') baseAcceleration = 10;
-  
-  const powerFactor = Math.max(0.02, (200 - powerHP) * 0.02);
-  return Math.round((baseAcceleration - powerFactor) * 10) / 10;
-}
-
-function estimateDoorsFromClass(vehicleClass) {
-  return vehicleClass === 'coupe' ? 2 : 4;
-}
-
-function estimateSeatsFromClass(vehicleClass) {
-  if (vehicleClass === 'suv') return 7;
-  if (vehicleClass === 'pickup') return 5;
+function estimateSeatsFromModel(model) {
+  if (model.toLowerCase().includes('van') || model.toLowerCase().includes('kombi')) return 7;
+  if (model.toLowerCase().includes('pickup') || model.toLowerCase().includes('suv')) return 5;
   return 5;
 }
 
-function estimateTrunkCapacity(vehicleClass) {
-  const capacities = {
-    'hatch': 300,
-    'sedan': 450,
-    'suv': 600,
-    'pickup': 800,
-    'coupe': 350
-  };
-  return capacities[vehicleClass] || 400;
+function estimateDoorsFromType(vehicleType) {
+  if (vehicleType === 'motorcycles') return 0;
+  if (vehicleType === 'trucks') return 2;
+  return Math.random() > 0.7 ? 2 : 4;
 }
 
-function getBrandOrigin(make) {
-  const nationalBrands = ['Fiat', 'Volkswagen', 'Chevrolet', 'Ford', 'Hyundai'];
-  return nationalBrands.includes(make) ? 'Nacional' : 'Importado';
+function estimateSeatsFromType(vehicleType) {
+  if (vehicleType === 'motorcycles') return 2;
+  if (vehicleType === 'trucks') return 3;
+  return 5;
 }
 
-function getBrandWarranty(make) {
-  return make === 'Hyundai' ? '5 anos' : '3 anos';
-}
-
-function getBrazilianFeatures(vehicleClass, price) {
-  const basicFeatures = ['Ar condicionado', 'Direção hidráulica', 'Vidros elétricos'];
-  const premiumFeatures = ['Central multimídia', 'Câmera de ré', 'Sensores de estacionamento', 'Controle de cruzeiro'];
-  const luxuryFeatures = ['Couro', 'Teto solar', 'Sistema de som premium', 'Alerta de ponto cego'];
+function estimateConsumption(fuel, year) {
+  const baseFactor = year > 2015 ? 1.2 : 1.0; // Carros mais novos são mais eficientes
+  const fuelFactor = fuel === 'Flex' ? 1.1 : fuel === 'Diesel' ? 1.3 : 1.0;
   
-  if (price > 200000) {
-    return [...basicFeatures, ...premiumFeatures, ...luxuryFeatures];
-  } else if (price > 100000) {
-    return [...basicFeatures, ...premiumFeatures];
-  } else {
-    return basicFeatures;
-  }
+  const base = 10 * baseFactor * fuelFactor;
+
+      return {
+    city: Math.floor(base + Math.random() * 3),
+    highway: Math.floor(base + Math.random() * 5 + 2),
+    combined: Math.floor(base + Math.random() * 3 + 1)
+  };
 }
 
-// Função para gerar preços realistas baseados na marca
+function estimatePerformance(model, year, fuel) {
+  // Estimativas baseadas no modelo e ano
+  const ageFactor = Math.max(0.8, 1 - (new Date().getFullYear() - year) * 0.02);
+  const fuelFactor = fuel === 'Diesel' ? 1.3 : fuel === 'Flex' ? 1.1 : 1.0;
+  
+  let basePower = 100;
+  if (model.toLowerCase().includes('sport')) basePower = 150;
+  if (model.toLowerCase().includes('turbo')) basePower = 130;
+  if (model.toLowerCase().includes('1.0')) basePower = 80;
+  if (model.toLowerCase().includes('2.0')) basePower = 130;
+  
+  const power = Math.floor(basePower * ageFactor * fuelFactor);
+  const torque = Math.floor(power * 1.3);
+  const acceleration = (15 - (power / 20) + Math.random() * 2).toFixed(1);
+  const maxSpeed = Math.floor(power * 1.8 + 100);
+  
+      return {
+    power,
+    torque, 
+    acceleration: parseFloat(acceleration),
+    maxSpeed
+  };
+}
+
+function getBrandOrigin(brand) {
+  const nationalBrands = ['Volkswagen', 'Chevrolet', 'Fiat', 'Ford'];
+  const importedBrands = ['Toyota', 'Honda', 'Hyundai', 'Nissan'];
+  
+  if (nationalBrands.some(b => brand.toLowerCase().includes(b.toLowerCase()))) {
+    return 'Nacional';
+  }
+  if (importedBrands.some(b => brand.toLowerCase().includes(b.toLowerCase()))) {
+    return 'Importado';
+  }
+  return 'Nacional';
+}
+
+function getBrandWarranty(brand) {
+  const warranties = {
+    'Volkswagen': '3 anos',
+    'Chevrolet': '3 anos', 
+    'Fiat': '3 anos',
+    'Ford': '3 anos',
+    'Toyota': '3 anos',
+    'Honda': '3 anos',
+    'Hyundai': '5 anos'
+  };
+  
+  for (const [b, warranty] of Object.entries(warranties)) {
+    if (brand.toLowerCase().includes(b.toLowerCase())) {
+      return warranty;
+    }
+  }
+  return '3 anos';
+}
+
+function getBrazilianFeatures(model, price) {
+  const basicFeatures = ['Direção hidráulica', 'Vidros elétricos', 'Trava elétrica'];
+  const midFeatures = [...basicFeatures, 'Ar condicionado', 'Som MP3', 'Airbag duplo'];
+  const premiumFeatures = [...midFeatures, 'Central multimídia', 'Câmera de ré', 'Sensores de estacionamento', 'Controle de estabilidade'];
+  
+  if (price > 80000) return premiumFeatures;
+  if (price > 40000) return midFeatures;
+  return basicFeatures;
+}
+
 function generateBrazilianPrice(make, model, year = 2024) {
+  const currentYear = new Date().getFullYear();
+  const age = currentYear - year;
+  
+  // Preço base por marca
   const basePrices = {
-    'Toyota': { min: 85000, max: 300000 },
-    'Honda': { min: 80000, max: 280000 },
-    'Volkswagen': { min: 75000, max: 250000 },
-    'Chevrolet': { min: 70000, max: 400000 },
-    'Ford': { min: 75000, max: 200000 },
-    'Hyundai': { min: 70000, max: 180000 },
-    'Nissan': { min: 80000, max: 220000 },
-    'Fiat': { min: 60000, max: 150000 },
-    'Renault': { min: 65000, max: 140000 },
-    'Jeep': { min: 120000, max: 350000 }
+    'Volkswagen': 55000,
+    'Chevrolet': 50000,
+    'Fiat': 45000,
+    'Ford': 48000,
+    'Toyota': 65000,
+    'Honda': 60000,
+    'Hyundai': 55000,
+    'Nissan': 58000
   };
-
-  const brandRange = basePrices[make] || { min: 70000, max: 200000 };
-  const basePrice = Math.floor(Math.random() * (brandRange.max - brandRange.min) + brandRange.min);
   
-  // Ajuste por ano (carros mais novos são mais caros)
-  const yearMultiplier = year >= 2024 ? 1.0 : year >= 2023 ? 0.95 : 0.9;
+  let basePrice = 45000; // Preço padrão
   
-  return Math.floor(basePrice * yearMultiplier);
-}
-
-// Sistema de busca com fallback inteligente
-async function smartCarSearch(filters = {}) {
-  console.log('🚀 Iniciando busca inteligente de carros...');
-  
-  const errors = [];
-  
-  // Tentar API Ninjas primeiro (mais confiável)
-  try {
-    const result = await searchCarsFromNinjas(filters);
-    if (result.success && result.data.length > 0) {
-      console.log('✅ Sucesso com API Ninjas');
-      return result;
+  // Encontrar preço base por marca
+  for (const [brand, price] of Object.entries(basePrices)) {
+    if (make.toLowerCase().includes(brand.toLowerCase())) {
+      basePrice = price;
+      break;
     }
-  } catch (error) {
-    errors.push(`API Ninjas: ${error.message}`);
-    console.log('⚠️ API Ninjas falhou, tentando Car API...');
   }
   
-  // Fallback para Car API
-  try {
-    const result = await searchCarsFromCarAPI(filters);
-    if (result.success && result.data.length > 0) {
-      console.log('✅ Sucesso com Car API');
-      return result;
-    }
-  } catch (error) {
-    errors.push(`Car API: ${error.message}`);
-    console.log('⚠️ Car API falhou, usando dados de fallback...');
-  }
+  // Ajustes por modelo
+  if (model.toLowerCase().includes('sport')) basePrice *= 1.3;
+  if (model.toLowerCase().includes('premium')) basePrice *= 1.4;
+  if (model.toLowerCase().includes('basic')) basePrice *= 0.8;
   
-  // Fallback final - dados mínimos gerados
-  console.log('🔄 Gerando dados de fallback...');
-  const fallbackCars = generateFallbackCars(filters);
+  // Depreciação por ano
+  const depreciationFactor = Math.max(0.3, 1 - (age * 0.08));
+  const finalPrice = basePrice * depreciationFactor;
   
-  return {
-    success: true,
-    data: fallbackCars,
-    total: fallbackCars.length,
-    source: 'fallback_generated',
-    message: `${fallbackCars.length} veículos (dados de fallback)`,
-    api_errors: errors
-  };
+  // Adicionar variação aleatória
+  const variation = 1 + (Math.random() - 0.5) * 0.2;
+  
+  return Math.floor(finalPrice * variation);
 }
 
-// Gerar dados de fallback quando APIs falharem
+// Função de fallback para casos de erro
 function generateFallbackCars(filters = {}) {
-  const fallbackMakes = ['Toyota', 'Honda', 'Volkswagen', 'Chevrolet', 'Ford', 'Fiat'];
-  const fallbackModels = ['Corolla', 'Civic', 'Golf', 'Onix', 'Ka', 'Argo'];
+  console.log('🛡️ Gerando dados de fallback...');
   
-  const targetMake = filters.make || fallbackMakes[Math.floor(Math.random() * fallbackMakes.length)];
-  const targetModel = filters.model || fallbackModels[Math.floor(Math.random() * fallbackModels.length)];
-  const targetYear = filters.year || 2024;
+  const fallbackCars = [
+    {
+      id: 'fallback_1',
+      brand: 'Volkswagen',
+      model: 'Gol 1.0',
+      year: 2023,
+      price: formatPriceBRL(45000),
+      priceNumber: 45000,
+      fipeCode: 'FALLBACK001',
+      vehicleType: 'Carro',
+      fuel: 'Flex',
+      transmission: 'Manual',
+      doors: 4,
+      seats: 5,
+      origin: 'Nacional',
+      warranty: '3 anos',
+      features: ['Direção hidráulica', 'Vidros elétricos'],
+      consumption: { city: 12, highway: 15, combined: 13 },
+      performance: { power: 80, torque: 110, acceleration: 12.5, maxSpeed: 170 },
+      image: getCarImage('Volkswagen', 'Gol')
+    },
+    {
+      id: 'fallback_2', 
+      brand: 'Chevrolet',
+      model: 'Onix 1.0',
+      year: 2023,
+      price: formatPriceBRL(48000),
+      priceNumber: 48000,
+      fipeCode: 'FALLBACK002',
+      vehicleType: 'Carro',
+      fuel: 'Flex',
+      transmission: 'Manual',
+      doors: 4,
+      seats: 5,
+      origin: 'Nacional',
+      warranty: '3 anos', 
+      features: ['Ar condicionado', 'Central multimídia'],
+      consumption: { city: 13, highway: 16, combined: 14 },
+      performance: { power: 82, torque: 112, acceleration: 12.8, maxSpeed: 175 },
+      image: getCarImage('Chevrolet', 'Onix')
+    }
+  ];
   
-  const limit = Math.min(parseInt(filters.limit) || 3, 10);
-  const cars = [];
-  
-  for (let i = 0; i < limit; i++) {
-    const car = {
-      make: targetMake,
-      model: targetModel,
-      year: targetYear,
-      class: 'sedan',
-      fuel_type: 'flex',
-      transmission: 'automatic',
-      engine: {
-        type: 'flex',
-        power_hp: 120 + Math.floor(Math.random() * 80),
-        torque_nm: 160 + Math.floor(Math.random() * 60),
-        cylinders: 4,
-        displacement: 1.6
-      },
-      performance: {
-        max_speed_kmh: 180 + Math.floor(Math.random() * 40),
-        acceleration_0_100_kmh: 8 + Math.random() * 4
-      },
-      consumption: {
-        city_kmpl: 8 + Math.random() * 6,
-        highway_kmpl: 12 + Math.random() * 6,
-        combined_kmpl: 10 + Math.random() * 5
-      }
-    };
-    
-    cars.push(enrichCarDataFromAPI(car, 'fallback'));
-  }
-  
-  return cars;
+  const limit = parseInt(filters.limit) || 10;
+
+      return {
+        success: true,
+    data: fallbackCars.slice(0, limit),
+    total: fallbackCars.length,
+    source: 'fallback',
+    message: 'Dados de exemplo (fallback)'
+  };
 }
 
-// Exportar o serviço principal
-const carApiServiceBrazil = {
-  // Buscar carros com filtros
-  searchCars: async (filters = {}) => {
-    try {
-      return await smartCarSearch(filters);
-    } catch (error) {
-      console.error('Error in searchCars:', error);
-      return {
-        success: false,
-        error: error.message,
-        data: []
-      };
+  // Obter estatísticas do mercado brasileiro
+async function getBrazilianMarketStats() {
+  try {
+    console.log('📊 Gerando estatísticas do mercado brasileiro...');
+    
+    const cacheKey = 'brazilian_market_stats';
+    const cached = cache.get(cacheKey);
+    if (cached) {
+      console.log('📦 Estatísticas encontradas no cache');
+      return cached;
     }
-  },
 
-  // Obter todas as marcas disponíveis
-  getAllMakes: async () => {
-    try {
-      return await getAllMakesFromAPIs();
-    } catch (error) {
-      console.error('Error in getAllMakes:', error);
+    // Buscar marcas populares
+    const brandsResult = await getFipeBrands('cars');
+    const totalBrands = brandsResult.total || 0;
+    
+    // Marcas nacionais vs importadas
+    const nationalBrands = ['Volkswagen', 'Chevrolet', 'Fiat', 'Ford'];
+    const importedBrands = ['Toyota', 'Honda', 'Hyundai', 'Nissan', 'Renault'];
+    
+    const stats = {
+      totalBrands: totalBrands,
+      marketSegments: {
+        nacional: nationalBrands.length,
+        importado: importedBrands.length
+      },
+      popularBrands: brandsResult.data?.slice(0, 10).map(brand => ({
+        name: brand.name,
+        code: brand.code,
+        category: nationalBrands.includes(brand.name) ? 'Nacional' : 'Importado'
+      })) || [],
+      vehicleTypes: {
+        carros: 'Automóveis de passeio',
+        motos: 'Motocicletas',
+        caminhoes: 'Caminhões e utilitários'
+      },
+      priceRanges: {
+        economico: 'R$ 20.000 - R$ 50.000',
+        medio: 'R$ 50.000 - R$ 100.000',
+        premium: 'R$ 100.000 - R$ 200.000',
+        luxury: 'R$ 200.000+'
+      },
+      fuelTypes: {
+        flex: 'Flexível (Gasolina/Etanol)',
+        gasolina: 'Gasolina',
+        diesel: 'Diesel',
+        eletrico: 'Elétrico/Híbrido'
+      },
+      marketTrends: {
+        mostPopularFuel: 'Flex',
+        averageAge: '8 anos',
+        topSegment: 'Compactos',
+        growthSector: 'SUVs'
+      },
+      dataSource: 'fipe_api',
+      lastUpdated: new Date().toISOString(),
+      coverage: 'Brasil - Tabela FIPE oficial'
+    };
+
+    const result = {
+      success: true,
+      data: stats,
+      source: 'fipe_api',
+      message: 'Estatísticas do mercado brasileiro obtidas com sucesso'
+    };
+
+    // Cache por 6 horas
+    cache.set(cacheKey, result, 21600000);
+    return result;
+
+  } catch (error) {
+    console.error('❌ Erro ao gerar estatísticas brasileiras:', error.message);
+    
+    // Retornar estatísticas básicas como fallback
       return {
-        success: false,
-        error: error.message,
-        data: []
-      };
-    }
-  },
-
-  // Buscar carros por marca
-  getCarsByMake: async (make, limit = 10) => {
-    try {
-      return await smartCarSearch({ make, limit });
-    } catch (error) {
-      console.error('Error in getCarsByMake:', error);
-      return {
-        success: false,
-        error: error.message,
-        data: [],
-        make: make
-      };
-    }
-  },
-
-  // Buscar carros por modelo
-  getCarsByModel: async (model, limit = 10) => {
-    try {
-      return await smartCarSearch({ model, limit });
-    } catch (error) {
-      return {
-        success: false,
-        error: error.message,
-        data: []
-      };
-    }
-  },
-
-  // Buscar carros por ano
-  getCarsByYear: async (year, limit = 10) => {
-    try {
-      return await smartCarSearch({ year, limit });
-    } catch (error) {
-      return {
-        success: false,
-        error: error.message,
-        data: []
-      };
-    }
-  },
-
-  // Obter estatísticas do mercado brasileiro (baseado em cache/APIs)
-  getBrazilianMarketStats: async () => {
-    try {
-      const cacheKey = 'market_stats';
-      const cached = cache.get(cacheKey);
-      if (cached) return cached;
-
-      // Buscar dados de diferentes marcas para gerar estatísticas
-      const makes = ['Toyota', 'Honda', 'Volkswagen', 'Chevrolet', 'Ford'];
-      let totalCars = 0;
-      const fuelTypes = {};
-
-      for (const make of makes) {
-        try {
-          const result = await smartCarSearch({ make, limit: 5 });
-          totalCars += result.data.length;
-          
-          result.data.forEach(car => {
-            fuelTypes[car.fuel_type] = (fuelTypes[car.fuel_type] || 0) + 1;
-          });
-        } catch (error) {
-          console.log(`Erro ao buscar ${make}:`, error.message);
-        }
-      }
-
-      const stats = {
         success: true,
         data: {
-          total_vehicles: totalCars,
-          total_makes: makes.length,
-          makes: makes,
-          fuel_types: fuelTypes,
-          average_price: 145000,
-          formatted_avg_price: 'R$ 145.000,00',
-          data_source: 'real_apis_with_fallback'
-        },
-        message: 'Estatísticas baseadas em dados reais das APIs'
-      };
-
-      cache.set(cacheKey, stats, 1800000); // 30 minutos
-      return stats;
-
-    } catch (error) {
-      return {
-        success: false,
-        error: error.message,
-        data: {}
-      };
-    }
-  },
-
-  // Limpar cache (útil para desenvolvimento)
-  clearCache: () => {
-    cache.clear();
-    return { success: true, message: 'Cache limpo com sucesso' };
+        totalBrands: 50,
+        marketSegments: { nacional: 4, importado: 10 },
+        dataSource: 'fallback',
+        lastUpdated: new Date().toISOString(),
+        message: 'Estatísticas básicas (dados de exemplo)'
+      },
+      source: 'fallback'
+    };
   }
-};
+}
 
-module.exports = carApiServiceBrazil; 
+// Exportar funções principais
+module.exports = {
+  smartCarSearch,
+  getFipeBrands,
+  getFipeModels,
+  getFipeYears,
+  getFipeVehicleDetails,
+  getFipeByCode,
+  searchVehiclesByMake,
+  searchVehiclesByMakeModel,
+  getPopularBrands,
+  getBrazilianMarketStats,
+  cache
+}; 

@@ -1,98 +1,94 @@
 /**
- * ROTAS PARA CARROS (NOVA API EXPANDIDA)
- * Aqui defino todas as rotas relacionadas à nova API de carros
- * que utiliza dados expandidos e funcionalidades avançadas que implementei
+ * ROTAS PARA CARROS (API FIPE)
+ * Rotas para acessar dados da tabela FIPE brasileira
  */
 
-const express = require('express');                    // Framework web
-const router = express.Router();                      // Crio um roteador Express
-const carController = require('../controllers/carController'); // Importo o controlador que criei
+const express = require('express');
+const router = express.Router();
+const carController = require('../controllers/carController');
 
 /**
  * MIDDLEWARE DE LOGGING
  * Registro todas as requisições feitas para essas rotas
- * Útil para debuggar e monitorar o que está acontecendo
  */
 const logRequest = (req, res, next) => {
   console.log(`[${new Date().toISOString()}] ${req.method} ${req.originalUrl}`);
-  next(); // Chamo o próximo middleware na cadeia
+  next();
 };
 
-// Aplico o middleware de logging a todas as rotas deste arquivo
+// Aplico o middleware de logging a todas as rotas
 router.use(logRequest);
 
 /**
- * DEFINIÇÃO DAS ROTAS DA API DE CARROS
- * Organizei por ordem de prioridade para evitar conflitos
+ * ROTAS DA API FIPE
  */
 
-// 1. HEALTH CHECK - Verifico se a API está funcionando
-// Rota: GET /api/cars/health
-router.get('/health', carController.healthCheck);
-
-// 2. BUSCA AVANÇADA - Busco carros com múltiplos filtros
+// 1. BUSCA INTELIGENTE - Busco carros com filtros
 // Rota: GET /api/cars/search?make=Toyota&model=Corolla&year=2022
 router.get('/search', carController.searchCars);
 
-// 3. LISTAR MARCAS - Pego todas as marcas disponíveis
-// Rota: GET /api/cars/makes
+// 2. LISTAR MARCAS FIPE - Pego todas as marcas da FIPE
+// Rota: GET /api/cars/makes?type=cars
 router.get('/makes', carController.getAllMakes);
 
-// 4. BUSCAR POR MARCA - Listo carros de uma marca específica
+// 3. BUSCAR POR MARCA - Listo carros de uma marca específica
 // Rota: GET /api/cars/make/Toyota
 router.get('/make/:make', carController.getCarsByMake);
 
-// 5. BUSCAR POR MODELO - Listo carros de um modelo específico
-// Rota: GET /api/cars/model/Corolla
+// 4. BUSCAR POR MODELO - Listo carros de um modelo específico
+// Rota: GET /api/cars/model/Corolla?make=Toyota
 router.get('/model/:model', carController.getCarsByModel);
 
-// 6. BUSCAR POR ANO - Listo carros de um ano específico
+// 5. BUSCAR POR ANO - Listo carros de um ano específico
 // Rota: GET /api/cars/year/2022
 router.get('/year/:year', carController.getCarsByYear);
 
-// 7. BUSCAR POR COMBUSTÍVEL - Listo carros por tipo de combustível
-// Rota: GET /api/cars/fuel/gasoline
+// 6. BUSCAR POR COMBUSTÍVEL - Listo carros por tipo de combustível
+// Rota: GET /api/cars/fuel/flex
 router.get('/fuel/:fuelType', carController.getCarsByFuelType);
 
-// 8. BUSCAR POR TRANSMISSÃO - Listo carros por tipo de transmissão
+// 7. BUSCAR POR TRANSMISSÃO - Listo carros por tipo de transmissão
 // Rota: GET /api/cars/transmission/manual
 router.get('/transmission/:transmission', carController.getCarsByTransmission);
 
-// 9. CARROS EFICIENTES - Listo carros com melhor consumo de combustível
-// Rota: GET /api/cars/efficient
-router.get('/efficient', carController.getEfficientCars);
+// 8. BUSCAR POR CÓDIGO FIPE - Busco veículo por código FIPE
+// Rota: GET /api/cars/fipe/001234-1?type=cars
+router.get('/fipe/:fipeCode', carController.getCarByFipeCode);
 
-// 10. BUSCAR POR CILINDROS - Listo carros por número de cilindros
-// Rota: GET /api/cars/cylinders/4
-router.get('/cylinders/:cylinders', carController.getCarsByCylinders);
-
-// 11. ESTATÍSTICAS GERAIS - Forneço estatísticas sobre todos os carros
+// 9. ESTATÍSTICAS FIPE - Forneço estatísticas da FIPE
 // Rota: GET /api/cars/stats
 router.get('/stats', carController.getCarStats);
 
-// 12. BUSCAR POR FAIXA DE PREÇO - Listo carros dentro de uma faixa de preço
-// Rota: GET /api/cars/price-range?min=50000&max=100000
-router.get('/price-range', carController.getCarsByPriceRange);
+// 10. BUSCAR COM MÚLTIPLOS FILTROS - Busco com body JSON
+// Rota: POST /api/cars/filters
+router.post('/filters', carController.getCarsByMultipleFilters);
 
-// 13. COMPARAR CARROS - Comparo múltiplos carros (recebo dados via POST)
+// 11. COMPARAR CARROS - Comparo múltiplos carros
 // Rota: POST /api/cars/compare
 router.post('/compare', carController.compareCars);
 
-// 14. BUSCAR IMAGEM DE CARRO - Pego imagem de um carro específico
+// 12. LIMPAR CACHE - Limpo cache da API
+// Rota: DELETE /api/cars/cache
+router.delete('/cache', carController.clearCache);
+
+// 13. BUSCAR IMAGEM DE CARRO - Pego imagem de um carro específico
 // Rota: GET /api/cars/image/Toyota/Corolla
 router.get('/image/:make/:model', carController.getCarImage);
 
-// 15. BUSCAR MÚLTIPLAS IMAGENS - Pego imagens de vários carros (POST)
+// 14. BUSCAR MÚLTIPLAS IMAGENS - Pego imagens de vários carros
 // Rota: POST /api/cars/images
 router.post('/images', carController.getMultipleCarImages);
 
-// 16. ESTATÍSTICAS DO CACHE - Mostro estatísticas do cache de imagens
+// 15. ESTATÍSTICAS DO CACHE DE IMAGENS - Mostro estatísticas do cache
 // Rota: GET /api/cars/images/cache/stats
 router.get('/images/cache/stats', carController.getImageCacheStats);
 
-// 17. LIMPAR CACHE - Removo todas as imagens do cache
+// 16. LIMPAR CACHE DE IMAGENS - Removo imagens do cache
 // Rota: DELETE /api/cars/images/cache
 router.delete('/images/cache', carController.clearImageCache);
 
-// Exporto o roteador para usar no app.js
+// 17. ESTATÍSTICAS DO MERCADO BRASILEIRO - Dados específicos do Brasil
+// Rota: GET /api/cars/stats/brazil
+router.get('/stats/brazil', carController.getBrazilianMarketStats);
+
 module.exports = router; 

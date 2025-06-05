@@ -1,35 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import './App.css';
 import CarSearch from './components/CarSearch';
-
-interface CarData {
-  id: string;
-  make: string;
-  model: string;
-  year: number;
-  price: number;
-  engine: {
-    type: string;
-    power_hp: number;
-    torque_nm: number;
-    cylinders: number;
-    displacement: number;
-  };
-  performance: {
-    max_speed_kmh: number;
-    acceleration_0_100_kmh: number;
-  };
-  kmpl_city: number;
-  kmpl_highway: number;
-  fuel_type: string;
-  transmission: string;
-  features: string[];
-  specifications: {
-    doors: number;
-    seats: number;
-    trunk_capacity: number;
-  };
-}
+import type { CarData } from './types/CarData';
 
 interface ComparisonResult {
   winner: CarData;
@@ -53,6 +25,7 @@ function App() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [showWinnerScreen, setShowWinnerScreen] = useState(false);
   const [comparisonResult, setComparisonResult] = useState<ComparisonResult | null>(null);
+  const [videoLoaded, setVideoLoaded] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
 
   useEffect(() => {
@@ -66,13 +39,31 @@ function App() {
   useEffect(() => {
     const video = videoRef.current;
     if (video) {
+      console.log('🎥 Configurando vídeo Honda NSX...');
+      
       video.addEventListener('loadeddata', () => {
-        console.log('Video loaded successfully');
+        console.log('🎥 Vídeo Honda NSX carregado com sucesso');
+        setVideoLoaded(true);
       });
       
       video.addEventListener('error', (e) => {
-        console.error('Video error:', e);
+        console.error('❌ Erro ao carregar vídeo:', e);
+        setVideoLoaded(false);
       });
+
+      video.addEventListener('loadstart', () => {
+        console.log('🔄 Iniciando carregamento do vídeo...');
+      });
+
+      video.addEventListener('canplay', () => {
+        console.log('✅ Vídeo pronto para reprodução');
+        video.play().catch(error => {
+          console.warn('⚠️ Autoplay bloqueado:', error);
+        });
+      });
+
+      // Forçar carregamento
+      video.load();
     }
   }, []);
 
@@ -98,10 +89,33 @@ function App() {
     });
   };
 
+  // Funções auxiliares para normalizar dados
+  const getMake = (car: CarData) => car.brand || car.make || 'Marca';
+  const getAcceleration = (car: CarData) => {
+    if (car.performance?.acceleration) return parseFloat(car.performance.acceleration);
+    if (car.performance_old?.acceleration_0_100_kmh) return car.performance_old.acceleration_0_100_kmh;
+    return 10.0;
+  };
+  const getCityConsumption = (car: CarData) => {
+    if (car.consumption?.city) return car.consumption.city;
+    if (car.kmpl_city) return car.kmpl_city;
+    return 12;
+  };
+  const getHighwayConsumption = (car: CarData) => {
+    if (car.consumption?.highway) return car.consumption.highway;
+    if (car.kmpl_highway) return car.kmpl_highway;
+    return 15;
+  };
+  const getPower = (car: CarData) => {
+    if (car.performance?.power) return car.performance.power;
+    if (car.engine?.power_hp) return car.engine.power_hp;
+    return 100;
+  };
+
   const calculateCarScore = (car: CarData) => {
     // Normalizar valores para pontuação (0-100)
-    const accelerationScore = Math.max(0, 100 - (car.performance.acceleration_0_100_kmh * 10)); // Menor tempo = maior pontuação
-    const economyScore = Math.min(100, ((car.kmpl_city + car.kmpl_highway) / 2) * 5); // Maior consumo = maior pontuação
+    const accelerationScore = Math.max(0, 100 - (getAcceleration(car) * 10)); // Menor tempo = maior pontuação
+    const economyScore = Math.min(100, ((getCityConsumption(car) + getHighwayConsumption(car)) / 2) * 5); // Maior consumo = maior pontuação
     const yearScore = Math.min(100, ((car.year - 2000) / 24) * 100); // Carros mais novos = maior pontuação
     const valueScore = Math.max(0, 100 - (car.price / 1000)); // Menor preço = maior pontuação (ajustado)
 
@@ -163,36 +177,47 @@ function App() {
       'ford-ka': 'https://images.unsplash.com/photo-1503376780353-7e6692767b70?w=800&h=600&fit=crop',
     };
 
-    const key = `${car.make.toLowerCase()}-${car.model.toLowerCase()}`;
+    const key = `${getMake(car).toLowerCase()}-${car.model.toLowerCase()}`;
     return carImages[key] || 'https://images.unsplash.com/photo-1494976688153-ca3ce29d8df4?w=800&h=600&fit=crop';
   };
 
   return (
     <div className="App">
-      {/* Vídeo de fundo */}
+      {/* Vídeo de fundo Honda NSX */}
       <video
         ref={videoRef}
         className="background-video"
+        autoPlay
         muted
         loop
-        autoPlay
         playsInline
         preload="auto"
       >
-        <source src="https://res.cloudinary.com/dzwfuzxxw/video/upload/v1748481369/5ENNA_Honda_NSX___4K_dx4xgn.mp4" type="video/mp4" />
+        <source 
+          src="https://res.cloudinary.com/dzwfuzxxw/video/upload/v1748481369/5ENNA_Honda_NSX___4K_dx4xgn.mp4" 
+          type="video/mp4" 
+        />
+        Seu navegador não suporta o elemento de vídeo.
       </video>
       
-      {/* Overlay do vídeo */}
+      {/* Overlay para contraste */}
       <div className="video-overlay"></div>
 
-      {/* Menu hambúrguer - apenas as barrinhas */}
+      {/* Status do vídeo */}
+      <div className="video-status">
+        <span className={`status-indicator ${videoLoaded ? 'loaded' : 'loading'}`}>
+          {videoLoaded ? '🎥 Honda NSX 4K' : '⏳ Carregando vídeo...'}
+        </span>
+      </div>
+
+      {/* Menu hambúrguer - sempre visível */}
       <div className="hero-hamburger-lines" onClick={toggleMenu}>
         <div className={`hamburger-line ${isMenuOpen ? 'active' : ''}`}></div>
         <div className={`hamburger-line ${isMenuOpen ? 'active' : ''}`}></div>
         <div className={`hamburger-line ${isMenuOpen ? 'active' : ''}`}></div>
       </div>
 
-      {/* Menu dropdown que desce de cima */}
+      {/* Menu dropdown */}
       <div className={`dropdown-menu ${isMenuOpen ? 'open' : ''}`}>
         <div className="dropdown-content">
           <div className="menu-left">
@@ -203,27 +228,31 @@ function App() {
           <div className="menu-right">
             <nav className="menu-nav">
               <button className="menu-button" onClick={() => setIsMenuOpen(false)}>
-                Início
+                🏠 Início
               </button>
               <button className="menu-button" onClick={() => setIsMenuOpen(false)}>
-                Comparar
+                🚗 Comparar
               </button>
               <button className="menu-button" onClick={() => setIsMenuOpen(false)}>
-                Buscar
+                🔍 Buscar
               </button>
               <button className="menu-button" onClick={() => setIsMenuOpen(false)}>
-                Estatísticas
+                📊 Estatísticas
               </button>
             </nav>
           </div>
         </div>
       </div>
 
-      {/* Seção Hero */}
+      {/* Seção Hero - sempre visível */}
       <section className="hero-section">
         <div className="hero-content">
-          <h1 className="hero-title">Comparate</h1>
-          <p className="hero-subtitle">Compare veículos com dados brasileiros completos</p>
+          <h1 className="hero-title">🚗 Comparate FIPE</h1>
+          <p className="hero-subtitle">Compare veículos com dados brasileiros da Tabela FIPE oficial</p>
+          <div style={{ marginTop: '2rem', padding: '1rem', backgroundColor: 'rgba(0,255,136,0.1)', borderRadius: '10px', border: '1px solid rgba(0,255,136,0.3)' }}>
+            <p style={{ fontSize: '1.2rem', marginBottom: '0.5rem' }}>✅ Sistema Online</p>
+            <p style={{ fontSize: '1rem', opacity: '0.8' }}>API FIPE integrada • {videoLoaded ? 'Vídeo Honda NSX carregado' : 'Carregando vídeo 4K'}</p>
+          </div>
         </div>
       </section>
 
@@ -234,35 +263,35 @@ function App() {
             <div className="winner-left">
               <img 
                 src={getCarImageUrl(comparisonResult.winner)} 
-                alt={`${comparisonResult.winner.make} ${comparisonResult.winner.model}`}
+                alt={`${getMake(comparisonResult.winner)} ${comparisonResult.winner.model}`}
                 className="winner-car-image"
               />
             </div>
             <div className="winner-right">
               <div className="winner-title-container">
                 <h1 className="winner-title">
-                  {comparisonResult.winner.make} {comparisonResult.winner.model}
+                  {getMake(comparisonResult.winner)} {comparisonResult.winner.model}
                 </h1>
                 <h1 className="winner-title">
-                  {comparisonResult.winner.make} {comparisonResult.winner.model}
+                  {getMake(comparisonResult.winner)} {comparisonResult.winner.model}
                 </h1>
                 <h1 className="winner-title">
-                  {comparisonResult.winner.make} {comparisonResult.winner.model}
+                  {getMake(comparisonResult.winner)} {comparisonResult.winner.model}
                 </h1>
               </div>
               
               <div className="winner-stats">
                 <div className="winner-stat">
                   <span className="stat-label">POTÊNCIA</span>
-                  <span className="stat-value">{comparisonResult.winner.engine.power_hp} HP</span>
+                  <span className="stat-value">{getPower(comparisonResult.winner)} HP</span>
                 </div>
                 <div className="winner-stat">
                   <span className="stat-label">0-100 KM/H</span>
-                  <span className="stat-value">{comparisonResult.winner.performance.acceleration_0_100_kmh}s</span>
+                  <span className="stat-value">{getAcceleration(comparisonResult.winner)}s</span>
                 </div>
                 <div className="winner-stat">
                   <span className="stat-label">CONSUMO</span>
-                  <span className="stat-value">{comparisonResult.winner.kmpl_city} km/l</span>
+                  <span className="stat-value">{getCityConsumption(comparisonResult.winner)} km/l</span>
                 </div>
                 <div className="winner-stat">
                   <span className="stat-label">ANO</span>

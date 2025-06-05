@@ -1,51 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import './CarSearch.css';
 import VehicleCard from './VehicleCard';
-
-interface CarData {
-  id: string;
-  make: string;
-  model: string;
-  year: number;
-  price: number;
-  engine: {
-    type: string;
-    power_hp: number;
-    torque_nm: number;
-    cylinders: number;
-    displacement: number;
-  };
-  performance: {
-    max_speed_kmh: number;
-    acceleration_0_100_kmh: number;
-  };
-  kmpl_city: number;
-  kmpl_highway: number;
-  fuel_type: string;
-  transmission: string;
-  features: string[];
-  specifications: {
-    doors: number;
-    seats: number;
-    trunk_capacity: number;
-  };
-}
-
-interface SearchFilters {
-  make?: string;
-  model?: string;
-  year?: number;
-  fuel_type?: string;
-  transmission?: string;
-  limit?: number;
-}
-
-interface CarSearchProps {
-  onAddToComparison?: (car: CarData) => void;
-  onRemoveFromComparison?: (carId: string) => void;
-  onCompare?: () => void;
-  selectedCars?: CarData[];
-}
+import type { CarData, SearchFilters, CarSearchProps } from '../types/CarData';
 
 // Serviço de API simulado
 const carApiService = {
@@ -117,9 +73,27 @@ const CarSearch: React.FC<CarSearchProps> = ({
       const makesData = await carApiService.getMakes();
       console.log('✅ Marcas carregadas:', makesData);
       console.log('📊 Total de marcas:', makesData.length);
-      setMakes(makesData);
       
-      if (makesData.length === 0) {
+      // Processar marcas - podem vir como objetos ou strings
+      let processedMakes: string[] = [];
+      if (makesData && Array.isArray(makesData)) {
+        processedMakes = makesData.map((make: any) => {
+          // Se for objeto com propriedade name, usar name
+          if (typeof make === 'object' && make.name) {
+            return make.name;
+          }
+          // Se for string, usar diretamente
+          if (typeof make === 'string') {
+            return make;
+          }
+          // Fallback
+          return String(make);
+        });
+      }
+      
+      setMakes(processedMakes);
+      
+      if (processedMakes.length === 0) {
         console.warn('⚠️ Nenhuma marca retornada da API, usando fallback');
         setMakes(popularMakes.map(m => m.name));
       }
@@ -140,7 +114,25 @@ const CarSearch: React.FC<CarSearchProps> = ({
 
   useEffect(() => {
     loadMakes();
+    // Carregar dados iniciais para mostrar carros imediatamente
+    loadInitialData();
   }, []);
+
+  // Carregar dados iniciais para exibir carros populares
+  const loadInitialData = async () => {
+    try {
+      console.log('🚗 Carregando dados iniciais...');
+      // Buscar carros populares de marcas conhecidas
+      const popularMake = 'Toyota';
+      const initialResults = await carApiService.getCarsByMake(popularMake, 8);
+      if (initialResults.length > 0) {
+        setSearchResults(initialResults);
+        console.log(`✅ ${initialResults.length} carros iniciais carregados`);
+      }
+    } catch (error) {
+      console.log('ℹ️ Erro ao carregar dados iniciais - normal na primeira carga');
+    }
+  };
 
   // Buscar carros com filtros
   const searchCars = async (loadAll = false) => {
@@ -216,11 +208,54 @@ const CarSearch: React.FC<CarSearchProps> = ({
       if (selected.id && car.id) {
         return selected.id === car.id;
       }
-      return selected.make === car.make && 
+      const selectedMake = selected.brand || selected.make || '';
+      const carMake = car.brand || car.make || '';
+      return selectedMake === carMake && 
              selected.model === car.model && 
              selected.year === car.year;
     });
   };
+
+  // Funções auxiliares para normalizar dados
+  const getMake = (car: CarData) => car.brand || car.make || 'Marca';
+  const getPower = (car: CarData) => {
+    if (car.performance?.power) return car.performance.power;
+    if (car.engine?.power_hp) return car.engine.power_hp;
+    return 100;
+  };
+  const getTorque = (car: CarData) => {
+    if (car.performance?.torque) return car.performance.torque;
+    if (car.engine?.torque_nm) return car.engine.torque_nm;
+    return 200;
+  };
+  const getCylinders = (car: CarData) => car.engine?.cylinders || 4;
+  const getDisplacement = (car: CarData) => car.engine?.displacement || 1.6;
+  const getMaxSpeed = (car: CarData) => {
+    if (car.performance?.maxSpeed) return car.performance.maxSpeed;
+    if (car.performance_old?.max_speed_kmh) return car.performance_old.max_speed_kmh;
+    return 180;
+  };
+  const getAcceleration = (car: CarData) => {
+    if (car.performance?.acceleration) return car.performance.acceleration;
+    if (car.performance_old?.acceleration_0_100_kmh) return car.performance_old.acceleration_0_100_kmh;
+    return 10;
+  };
+  const getCityConsumption = (car: CarData) => {
+    if (car.consumption?.city) return car.consumption.city;
+    if (car.kmpl_city) return car.kmpl_city;
+    return 12;
+  };
+  const getHighwayConsumption = (car: CarData) => {
+    if (car.consumption?.highway) return car.consumption.highway;
+    if (car.kmpl_highway) return car.kmpl_highway;
+    return 15;
+  };
+  const getFuel = (car: CarData) => car.fuel || car.fuel_type || 'Flex';
+  const getTransmission = (car: CarData) => car.transmission || 'Manual';
+  const getFeatures = (car: CarData) => car.features || [];
+  const getDoors = (car: CarData) => car.doors || car.specifications?.doors || 4;
+  const getSeats = (car: CarData) => car.seats || car.specifications?.seats || 5;
+  const getTrunkCapacity = (car: CarData) => car.specifications?.trunk_capacity || 400;
 
   return (
     <div className="car-search">
@@ -248,35 +283,13 @@ const CarSearch: React.FC<CarSearchProps> = ({
         </div>
       </div>
 
-      {/* Debug: Mostrar marcas carregadas */}
-      {makes.length > 0 && (
-        <div className="debug-section" style={{ 
-          background: 'rgba(0, 255, 0, 0.1)', 
-          padding: '1rem', 
-          borderRadius: '8px', 
-          marginBottom: '1rem',
-          border: '1px solid rgba(0, 255, 0, 0.3)'
-        }}>
-          <h4 style={{ color: '#00ff88', marginBottom: '0.5rem' }}>
-            ✅ Debug: {makes.length} marcas carregadas
-          </h4>
-          <div style={{ 
-            display: 'flex', 
-            flexWrap: 'wrap', 
-            gap: '0.5rem',
-            fontSize: '0.9rem',
-            color: '#cccccc'
-          }}>
-            {makes.map((make, index) => (
-              <span key={make} style={{ 
-                background: 'rgba(255, 255, 255, 0.1)', 
-                padding: '0.25rem 0.5rem', 
-                borderRadius: '4px' 
-              }}>
-                {index + 1}. {make}
-              </span>
-            ))}
-          </div>
+      {/* Status de marcas carregadas (simplificado) */}
+      {makes.length > 0 && !loading && (
+        <div className="status-message success">
+          <span className="status-icon">✅</span>
+          <span className="status-text">
+            {makes.length} marcas carregadas com sucesso da API FIPE
+          </span>
         </div>
       )}
 
@@ -297,8 +310,8 @@ const CarSearch: React.FC<CarSearchProps> = ({
               <option value="">
                 {loading && makes.length === 0 ? 'Carregando marcas...' : 'Todas as marcas'}
               </option>
-              {makes.map((make) => (
-                <option key={make} value={make}>{make}</option>
+              {makes.map((make, index) => (
+                <option key={`option-${index}-${make}`} value={make}>{make}</option>
               ))}
             </select>
           </div>
@@ -322,8 +335,8 @@ const CarSearch: React.FC<CarSearchProps> = ({
               onChange={(e) => handleFilterChange('year', e.target.value)}
             >
               <option value="">Todos os anos</option>
-              {Array.from({ length: 10 }, (_, i) => new Date().getFullYear() - i).map(year => (
-                <option key={year} value={year}>{year}</option>
+              {Array.from({ length: 10 }, (_, i) => new Date().getFullYear() - i).map((year, index) => (
+                <option key={`year-${index}-${year}`} value={year}>{year}</option>
               ))}
             </select>
           </div>
@@ -407,54 +420,54 @@ const CarSearch: React.FC<CarSearchProps> = ({
               )}
               
               <div className="comparison-grid">
-                {selectedCars.map((car) => (
-                  <div key={car.id} className="comparison-card">
+                {selectedCars.map((car, index) => (
+                  <div key={`comparison-${car.id || index}-${getMake(car)}-${car.model}-${car.year}`} className="comparison-card">
                     <button 
                       className="remove-button"
                       onClick={() => onRemoveFromComparison?.(car.id)}
                     >
                       ✕
                     </button>
-                    <h3>{car.make} {car.model} {car.year}</h3>
+                    <h3>{getMake(car)} {car.model} {car.year}</h3>
                     <div className="car-price">R$ {car.price.toLocaleString('pt-BR')}</div>
                     
                     <div className="car-details">
                       <div className="detail-section">
                         <h4>🔧 Motor</h4>
-                        <p>Potência: {car.engine.power_hp} HP</p>
-                        <p>Torque: {car.engine.torque_nm} Nm</p>
-                        <p>Cilindros: {car.engine.cylinders}</p>
-                        <p>Deslocamento: {car.engine.displacement}L</p>
+                        <p>Potência: {getPower(car)} HP</p>
+                        <p>Torque: {getTorque(car)} Nm</p>
+                        <p>Cilindros: {getCylinders(car)}</p>
+                        <p>Deslocamento: {getDisplacement(car)}L</p>
                       </div>
                       
                       <div className="detail-section">
                         <h4>🏁 Performance</h4>
-                        <p>Vel. Máxima: {car.performance.max_speed_kmh} km/h</p>
-                        <p>0-100 km/h: {car.performance.acceleration_0_100_kmh}s</p>
+                        <p>Vel. Máxima: {getMaxSpeed(car)} km/h</p>
+                        <p>0-100 km/h: {getAcceleration(car)}s</p>
                       </div>
                       
                       <div className="detail-section">
                         <h4>⛽ Consumo</h4>
-                        <p>Cidade: {car.kmpl_city} km/l</p>
-                        <p>Estrada: {car.kmpl_highway} km/l</p>
-                        <p>Combustível: {car.fuel_type}</p>
-                        <p>Transmissão: {car.transmission}</p>
+                        <p>Cidade: {getCityConsumption(car)} km/l</p>
+                        <p>Estrada: {getHighwayConsumption(car)} km/l</p>
+                        <p>Combustível: {getFuel(car)}</p>
+                        <p>Transmissão: {getTransmission(car)}</p>
                       </div>
                       
                       <div className="detail-section">
                         <h4>🎯 Características</h4>
                         <ul>
-                          {car.features.slice(0, 3).map((feature, index) => (
-                            <li key={index}>{feature}</li>
+                          {getFeatures(car).slice(0, 3).map((feature, index) => (
+                            <li key={`feature-${index}-${feature}`}>{feature}</li>
                           ))}
                         </ul>
                       </div>
                       
                       <div className="detail-section">
                         <h4>📏 Especificações</h4>
-                        <p>Portas: {car.specifications.doors}</p>
-                        <p>Assentos: {car.specifications.seats}</p>
-                        <p>Porta-malas: {car.specifications.trunk_capacity}L</p>
+                        <p>Portas: {getDoors(car)}</p>
+                        <p>Assentos: {getSeats(car)}</p>
+                        <p>Porta-malas: {getTrunkCapacity(car)}L</p>
                       </div>
                     </div>
                   </div>
@@ -489,7 +502,7 @@ const CarSearch: React.FC<CarSearchProps> = ({
           <div className="results-grid">
             {searchResults.map((car, index) => (
               <VehicleCard
-                key={`search-${car.make}-${car.model}-${car.year}-${index}`}
+                key={`search-result-${car.id || index}-${getMake(car)}-${car.model}-${car.year}`}
                 vehicle={car}
                 onAddToComparison={onAddToComparison}
                 selected={isCarSelected(car)}

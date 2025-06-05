@@ -10,6 +10,9 @@
   height: fit-content;
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
   transform: translateY(0);
+  /* Garantir contraste seguro */
+  color: #ffffff;
+  background-color: rgba(30, 30, 30, 0.9); /* Fundo escuro garantido */
 }
 
 .modern-vehicle-card:hover {
@@ -23,6 +26,7 @@
 .modern-vehicle-card.selected {
   border-color: #00ff88;
   background: linear-gradient(145deg, rgba(0, 255, 136, 0.15), rgba(0, 255, 136, 0.05));
+  background-color: rgba(30, 30, 30, 0.95); /* Fundo mais escuro quando selecionado */
   box-shadow: 
     0 20px 60px rgba(0, 255, 136, 0.25),
     0 0 40px rgba(0, 255, 136, 0.2);
@@ -149,6 +153,9 @@
 .modern-card-content {
   padding: 24px;
   color: #ffffff;
+  /* Garantir contraste seguro */
+  background: rgba(20, 20, 20, 0.8); /* Fundo semi-opaco */
+  backdrop-filter: blur(10px);
 }
 
 /* Header do Card */
@@ -168,14 +175,16 @@
   font-size: 1.4rem;
   font-weight: 700;
   margin: 0 0 4px 0;
-  color: #ffffff;
+  color: #ffffff; /* Branco garantido */
+  text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.8); /* Sombra para contraste */
   line-height: 1.2;
   font-family: 'Orbitron', sans-serif;
 }
 
 .modern-car-model {
   font-size: 1rem;
-  color: rgba(255, 255, 255, 0.8);
+  color: rgba(255, 255, 255, 0.9); /* Mais opaco */
+  text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.7);
   margin: 0;
   font-weight: 500;
   font-family: 'Rajdhani', sans-serif;
@@ -189,7 +198,7 @@
   font-size: 1.3rem;
   font-weight: 700;
   color: #00ff88;
-  text-shadow: 0 0 10px rgba(0, 255, 136, 0.3);
+  text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.8), 0 0 10px rgba(0, 255, 136, 0.3);
   font-family: 'Orbitron', sans-serif;
 }
 
@@ -205,11 +214,13 @@
   display: flex;
   align-items: center;
   gap: 10px;
-  background: rgba(255, 255, 255, 0.05);
-  padding: 12px;
-  border-radius: 12px;
+  padding: 8px 12px;
+  background: rgba(255, 255, 255, 0.08);
   border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 12px;
   transition: all 0.3s ease;
+  /* Garantir contraste */
+  background-color: rgba(40, 40, 40, 0.9);
 }
 
 .modern-spec-item:hover {
@@ -230,9 +241,11 @@
 }
 
 .spec-label {
-  font-size: 0.75rem;
-  color: rgba(255, 255, 255, 0.7);
+  font-size: 0.8rem;
+  color: rgba(255, 255, 255, 0.8);
+  text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.7);
   font-weight: 500;
+  margin-bottom: 2px;
   text-transform: uppercase;
   letter-spacing: 0.5px;
 }
@@ -240,6 +253,7 @@
 .spec-value {
   font-size: 0.9rem;
   color: #ffffff;
+  text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.8);
   font-weight: 600;
 }
 
@@ -258,7 +272,11 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  flex: 1;
+  color: #ffffff;
+  background: rgba(40, 40, 40, 0.8);
+  padding: 6px 10px;
+  border-radius: 8px;
+  margin-bottom: 6px;
 }
 
 .perf-icon {
@@ -268,14 +286,17 @@
 .perf-label {
   font-size: 0.8rem;
   color: rgba(255, 255, 255, 0.8);
+  text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.7);
   font-weight: 500;
+  margin-right: 4px;
 }
 
 .perf-value {
   font-size: 0.9rem;
   color: #00ff88;
+  text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.8);
   font-weight: 700;
-  margin-left: auto;
+  font-family: 'Orbitron', monospace;
 }
 
 /* Features */
@@ -285,10 +306,13 @@
 
 .features-title {
   font-size: 1rem;
-  color: #ffffff;
-  margin: 0 0 12px 0;
   font-weight: 600;
-  font-family: 'Rajdhani', sans-serif;
+  color: #ffffff;
+  text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.8);
+  margin-bottom: 12px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 
 .features-tags {
@@ -298,14 +322,17 @@
 }
 
 .feature-tag {
-  background: rgba(0, 200, 255, 0.2);
-  color: #00c8ff;
+  background: rgba(0, 255, 136, 0.2);
+  border: 1px solid rgba(0, 255, 136, 0.4);
+  color: #ffffff;
+  text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.8);
   padding: 6px 12px;
   border-radius: 20px;
   font-size: 0.8rem;
   font-weight: 500;
-  border: 1px solid rgba(0, 200, 255, 0.3);
   transition: all 0.3s ease;
+  backdrop-filter: blur(10px);
+  background-color: rgba(30, 30, 30, 0.8); /* Fundo garantido */
 }
 
 .feature-tag:hover {
@@ -320,24 +347,24 @@
 
 .modern-comparison-btn {
   width: 100%;
-  padding: 16px 20px;
-  background: linear-gradient(135deg, #00ff88, #00c8ff);
-  border: none;
-  border-radius: 16px;
-  color: #000;
-  font-weight: 700;
-  font-size: 0.95rem;
+  padding: 12px 16px;
+  background: linear-gradient(135deg, rgba(0, 255, 136, 0.2), rgba(0, 200, 255, 0.2));
+  background-color: rgba(30, 30, 30, 0.9); /* Fundo garantido */
+  border: 2px solid rgba(0, 255, 136, 0.4);
+  border-radius: 12px;
+  color: #ffffff;
+  text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.8);
+  font-size: 0.9rem;
+  font-weight: 600;
   cursor: pointer;
-  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: all 0.3s ease;
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 10px;
+  gap: 8px;
   position: relative;
   overflow: hidden;
-  font-family: 'Rajdhani', sans-serif;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
+  backdrop-filter: blur(10px);
 }
 
 .modern-comparison-btn::before {
@@ -381,7 +408,11 @@
 }
 
 .btn-text {
-  font-size: 0.9rem;
+  font-weight: 600;
+  color: #ffffff;
+  text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.8);
+  position: relative;
+  z-index: 2;
 }
 
 /* Animações */
