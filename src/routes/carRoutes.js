@@ -91,23 +91,11 @@ router.delete('/images/cache', carController.clearImageCache);
 // Rota: GET /api/cars/stats/brazil
 router.get('/stats/brazil', carController.getBrazilianMarketStats);
 
-// 18. INFORMAÇÕES COMPLETAS DE MODELO - Busco informações detalhadas de múltiplos anos
-// Rota: GET /api/cars/complete/Toyota/Corolla?type=cars&max_years=10
-router.get('/complete/:make/:model', carController.getCompleteModelDetails);
-
-// 19. EXPLORAR INFORMAÇÕES DA FIPE - Exploro endpoints adicionais da API FIPE
-// Rota: GET /api/cars/explore-fipe
-router.get('/explore-fipe', carController.exploreFipeInfo);
-
-// 20. INFORMAÇÕES COMPLETAS DAS TABELAS FIPE - Obtenho informações detalhadas de todas as tabelas
-// Rota: GET /api/cars/tables-info
-router.get('/tables-info', carController.getFipeTablesInfo);
-
-// 21. REFERÊNCIAS HISTÓRICAS FIPE - Obtenho todas as referências/tabelas disponíveis
+// 18. REFERÊNCIAS HISTÓRICAS FIPE - Obtenho todas as referências/tabelas disponíveis
 // Rota: GET /api/cars/references
 router.get('/references', carController.getFipeReferences);
 
-// 22. EVOLUÇÃO DE PREÇOS - Obtenho evolução histórica de preços de um veículo
+// 19. EVOLUÇÃO DE PREÇOS - Obtenho evolução histórica de preços de um veículo
 // Rota: GET /api/cars/price-evolution/Toyota/Corolla/2020?max_references=12
 router.get('/price-evolution/:make/:model/:year', carController.getVehiclePriceEvolution);
 
