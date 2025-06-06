@@ -656,6 +656,96 @@ const carController = {
         data: {}
       });
     }
+  },
+
+  // Obter referências históricas da FIPE
+  getFipeReferences: async (req, res) => {
+    try {
+      console.log(`[${new Date().toISOString()}] GET /api/cars/references`);
+      console.log('Obtendo referências históricas da FIPE');
+
+      const result = await carApiService.getFipeReferences();
+
+      if (result.success) {
+        res.json(createResponse(
+          true, 
+          result.data, 
+          `${result.total} referências históricas encontradas`,
+          { 
+            source: result.source,
+            total: result.total,
+            analysis: result.analysis
+          }
+        ));
+      } else {
+        res.status(500).json(createResponse(false, [], result.error));
+      }
+    } catch (error) {
+      console.error('Error in getFipeReferences:', error);
+      res.status(500).json(createResponse(false, [], error.message));
+    }
+  },
+
+  // Obter evolução histórica de preços de um veículo
+  getVehiclePriceEvolution: async (req, res) => {
+    try {
+      const { make, model, year } = req.params;
+      const vehicleType = req.query.type || 'cars';
+      const maxReferences = parseInt(req.query.max_references) || 12;
+
+      validateParams({ make, model, year }, ['make', 'model', 'year']);
+
+      console.log(`[${new Date().toISOString()}] GET /api/cars/price-evolution/${make}/${model}/${year}`);
+      console.log(`Obtendo evolução de preços para: ${make} ${model} ${year}`);
+
+      // Primeiro buscar o veículo para obter IDs
+      const vehicleResult = await carApiService.searchVehiclesByMakeModel(make, model, vehicleType, { limit: 1 });
+      
+      if (!vehicleResult.success || vehicleResult.data.length === 0) {
+        return res.status(404).json(createResponse(false, [], 'Veículo não encontrado'));
+      }
+
+      // Buscar o ano específico
+      const vehicleData = vehicleResult.data.find(v => v.year == year);
+      if (!vehicleData) {
+        return res.status(404).json(createResponse(false, [], `Ano ${year} não encontrado para este modelo`));
+      }
+
+      // Extrair IDs das informações de busca
+      const brandId = vehicleData.searchInfo?.foundBrand?.code;
+      const modelId = vehicleData.searchInfo?.foundModel?.code;
+      const yearCode = vehicleData.yearInfo?.code;
+
+      if (!brandId || !modelId || !yearCode) {
+        return res.status(400).json(createResponse(false, [], 'Não foi possível obter IDs necessários para busca histórica'));
+      }
+
+      const result = await carApiService.getFipeVehiclePriceEvolution(vehicleType, brandId, modelId, yearCode, maxReferences);
+
+      if (result.success) {
+        res.json(createResponse(
+          true, 
+          result.data, 
+          result.message,
+          { 
+            vehicle: {
+              make: make,
+              model: model,
+              year: year,
+              vehicleType: vehicleType
+            },
+            source: result.source,
+            totalReferences: result.data.totalReferences,
+            maxReferences: maxReferences
+          }
+        ));
+      } else {
+        res.status(500).json(createResponse(false, [], result.error));
+      }
+    } catch (error) {
+      console.error('Error in getVehiclePriceEvolution:', error);
+      res.status(500).json(createResponse(false, [], error.message));
+    }
   }
 };
 

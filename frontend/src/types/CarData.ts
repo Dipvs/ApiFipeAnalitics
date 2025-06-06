@@ -12,15 +12,20 @@ export interface CarData {
   model: string;
   year: number;
   price: number;
+  priceNumber?: number;
   fipeCode?: string;
   vehicleType?: string;
   fuel?: string;
+  fuelAcronym?: string;
   transmission?: string;
   doors?: number;
   seats?: number;
   origin?: string;
   warranty?: string;
   features?: string[];
+  referenceMonth?: string;
+  priceHistory?: any[];
+  dataSource?: string;
   
   // Performance FIPE
   consumption?: {

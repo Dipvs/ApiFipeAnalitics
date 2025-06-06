@@ -258,6 +258,8 @@ async function smartCarSearch(filters = {}) {
 // Buscar veículos por marca
 async function searchVehiclesByMake(makeName, vehicleType = 'cars', filters = {}) {
   try {
+    console.log(`🔍 Buscando veículos da marca: ${makeName}`);
+    
     // Buscar todas as marcas
     const brandsResult = await getFipeBrands(vehicleType);
     if (!brandsResult.success) throw new Error('Erro ao buscar marcas');
@@ -272,25 +274,44 @@ async function searchVehiclesByMake(makeName, vehicleType = 'cars', filters = {}
       throw new Error(`Marca ${makeName} não encontrada`);
     }
     
+    console.log(`✅ Marca encontrada: ${brand.name} (código: ${brand.code})`);
+    
     // Buscar modelos da marca
     const modelsResult = await getFipeModels(vehicleType, brand.code);
     if (!modelsResult.success) throw new Error('Erro ao buscar modelos');
     
+    console.log(`📋 ${modelsResult.data.length} modelos encontrados para ${brand.name}`);
+    
     // Converter modelos para formato padrão
     const limit = parseInt(filters.limit) || 10;
-    const vehicles = modelsResult.data.slice(0, limit).map(model => 
-      createVehicleFromFipeModel(brand, model, vehicleType)
-    );
+    const selectedModels = modelsResult.data.slice(0, limit);
+    
+    console.log(`🚗 Processando ${selectedModels.length} modelos...`);
+    
+    // Aguardar todas as promises de criação de veículos
+    const vehicles = [];
+    for (const model of selectedModels) {
+      try {
+        const vehicle = await createVehicleFromFipeModel(brand, model, vehicleType);
+        if (vehicle && Object.keys(vehicle).length > 0) {
+          vehicles.push(vehicle);
+        }
+      } catch (error) {
+        console.error(`❌ Erro ao processar modelo ${model.name}:`, error.message);
+      }
+    }
+    
+    console.log(`✅ ${vehicles.length} veículos processados com sucesso`);
 
-      return {
-        success: true,
+    return {
+      success: true,
       data: vehicles,
       total: vehicles.length,
       source: 'fipe_api',
       message: `${vehicles.length} veículos encontrados para ${brand.name}`
     };
     
-    } catch (error) {
+  } catch (error) {
     console.error('❌ Erro ao buscar por marca:', error.message);
     throw error;
   }
@@ -299,6 +320,8 @@ async function searchVehiclesByMake(makeName, vehicleType = 'cars', filters = {}
 // Buscar veículos por marca e modelo
 async function searchVehiclesByMakeModel(makeName, modelName, vehicleType = 'cars', filters = {}) {
   try {
+    console.log(`🔍 Buscando marca/modelo: ${makeName} ${modelName}`);
+    
     // Buscar marca
     const brandsResult = await getFipeBrands(vehicleType);
     const brand = brandsResult.data.find(b => 
@@ -306,6 +329,7 @@ async function searchVehiclesByMakeModel(makeName, modelName, vehicleType = 'car
     );
     
     if (!brand) throw new Error(`Marca ${makeName} não encontrada`);
+    console.log(`✅ Marca encontrada: ${brand.name} (código: ${brand.code})`);
     
     // Buscar modelos
     const modelsResult = await getFipeModels(vehicleType, brand.code);
@@ -314,39 +338,53 @@ async function searchVehiclesByMakeModel(makeName, modelName, vehicleType = 'car
     );
     
     if (!model) throw new Error(`Modelo ${modelName} não encontrado`);
+    console.log(`✅ Modelo encontrado: ${model.name} (código: ${model.code})`);
     
-    // Buscar anos disponíveis
-    const yearsResult = await getFipeYears(vehicleType, brand.code, model.code);
-    
-    if (!yearsResult.success || yearsResult.data.length === 0) {
-      throw new Error('Nenhum ano encontrado para este modelo');
-    }
-    
-    // Buscar detalhes dos anos mais recentes
+    // Buscar detalhes de múltiplos anos para extrair máximo de informações
     const limit = parseInt(filters.limit) || 5;
-    const recentYears = yearsResult.data.slice(0, limit);
+    const allYearDetailsResult = await getFipeVehicleDetailsAllYears(vehicleType, brand.code, model.code, limit);
     
-    const vehicles = [];
-    for (const year of recentYears) {
-      try {
-        const detailsResult = await getFipeVehicleDetails(vehicleType, brand.code, model.code, year.code);
-        if (detailsResult.success) {
-          vehicles.push(detailsResult.data);
-        }
-      } catch (err) {
-        console.log(`⚠️ Erro ao buscar detalhes do ano ${year.name}:`, err.message);
-      }
+    if (!allYearDetailsResult.success || allYearDetailsResult.data.length === 0) {
+      throw new Error('Nenhum detalhe encontrado para este modelo');
     }
+    
+    console.log(`✅ ${allYearDetailsResult.data.length} versões encontradas com informações completas`);
+    
+    // Adicionar informações extras sobre a busca
+    const enrichedVehicles = allYearDetailsResult.data.map(vehicle => ({
+      ...vehicle,
+      searchInfo: {
+        searchedMake: makeName,
+        searchedModel: modelName,
+        foundBrand: brand,
+        foundModel: model,
+        searchTimestamp: new Date().toISOString()
+      },
+      detailedAnalysis: {
+        totalAvailableYears: allYearDetailsResult.availableYears.length,
+        yearsRange: {
+          newest: allYearDetailsResult.availableYears[0]?.name,
+          oldest: allYearDetailsResult.availableYears[allYearDetailsResult.availableYears.length - 1]?.name
+        },
+        priceAnalysis: calculatePriceAnalysis(allYearDetailsResult.data)
+      }
+    }));
       
-      return {
-        success: true,
-      data: vehicles,
-      total: vehicles.length,
+    return {
+      success: true,
+      data: enrichedVehicles,
+      total: enrichedVehicles.length,
       source: 'fipe_api',
-      message: `${vehicles.length} versões encontradas para ${brand.name} ${model.name}`
+      searchResults: {
+        brandInfo: brand,
+        modelInfo: model,
+        availableYears: allYearDetailsResult.availableYears,
+        totalYearsAvailable: allYearDetailsResult.availableYears.length
+      },
+      message: `${enrichedVehicles.length} versões detalhadas encontradas para ${brand.name} ${model.name}`
     };
     
-    } catch (error) {
+  } catch (error) {
     console.error('❌ Erro ao buscar por marca/modelo:', error.message);
     throw error;
   }
@@ -385,16 +423,48 @@ async function getPopularBrands(vehicleType = 'cars') {
 }
 
 // Criar veículo a partir de modelo FIPE
-function createVehicleFromFipeModel(brand, model, vehicleType) {
+async function createVehicleFromFipeModel(brand, model, vehicleType) {
+  console.log(`🔍 Criando veículo: ${brand.name} ${model.name}`);
+  
+  try {
+    // Buscar anos disponíveis para o modelo
+    const yearsResult = await getFipeYears(vehicleType, brand.code, model.code);
+    
+    if (yearsResult.success && yearsResult.data.length > 0) {
+      // Pegar o primeiro ano disponível (mais recente)
+      const mostRecentYear = yearsResult.data[0];
+      console.log(`📅 Ano mais recente encontrado: ${mostRecentYear.name}`);
+      
+      // Buscar detalhes completos com preços reais da FIPE
+      const detailsResult = await getFipeVehicleDetails(vehicleType, brand.code, model.code, mostRecentYear.code);
+      
+      if (detailsResult.success) {
+        console.log(`✅ Dados reais FIPE obtidos para ${brand.name} ${model.name}`);
+        // Retornar dados reais da FIPE
+        return detailsResult.data;
+      } else {
+        console.log(`⚠️ Falha ao obter detalhes FIPE para ${brand.name} ${model.name}`);
+      }
+    } else {
+      console.log(`⚠️ Nenhum ano encontrado para ${brand.name} ${model.name}`);
+    }
+  } catch (error) {
+    console.log(`⚠️ Erro ao buscar dados reais FIPE para ${brand.name} ${model.name}:`, error.message);
+  }
+  
+  // Fallback com dados estimados apenas se não conseguir buscar dados reais
+  console.log(`🛡️ Usando dados estimados para ${brand.name} ${model.name}`);
   const currentYear = new Date().getFullYear();
-  const estimatedYear = currentYear - Math.floor(Math.random() * 10); // Estimar ano
+  const estimatedYear = currentYear - Math.floor(Math.random() * 10);
+  const estimatedPrice = generateBrazilianPrice(brand.name, model.name, estimatedYear);
   
   return {
     id: `${brand.code}_${model.code}`,
     brand: brand.name,
     model: model.name,
     year: estimatedYear,
-    price: generateBrazilianPrice(brand.name, model.name, estimatedYear),
+    price: formatPriceBRL(estimatedPrice),
+    priceNumber: estimatedPrice,
     fipeCode: `${brand.code}${model.code}`,
     vehicleType: vehicleType,
     fuel: 'Flex',
@@ -403,7 +473,7 @@ function createVehicleFromFipeModel(brand, model, vehicleType) {
     seats: estimateSeatsFromType(vehicleType),
     origin: getBrandOrigin(brand.name),
     warranty: getBrandWarranty(brand.name),
-    features: getBrazilianFeatures(vehicleType, 50000),
+    features: getBrazilianFeatures(vehicleType, estimatedPrice),
     consumption: {
       city: Math.floor(Math.random() * 5) + 8,
       highway: Math.floor(Math.random() * 5) + 12,
@@ -415,44 +485,113 @@ function createVehicleFromFipeModel(brand, model, vehicleType) {
       acceleration: (Math.random() * 5 + 8).toFixed(1),
       maxSpeed: Math.floor(Math.random() * 50) + 160
     },
-    image: getCarImage(brand.name, model.name)
+    image: getCarImage(brand.name, model.name),
+    dataSource: 'estimated' // Indicar que são dados estimados
   };
 }
 
-// Enriquecer dados do veículo FIPE
+// Enriquecer dados do veículo FIPE com todas as informações possíveis
 function enrichFipeVehicleData(fipeData) {
+  console.log('🔍 Dados brutos da FIPE:', JSON.stringify(fipeData, null, 2));
+  
   // Converter preço FIPE para número
-  const priceString = fipeData.price || 'R$ 0,00';
+  const priceString = fipeData.price || fipeData.valor || 'R$ 0,00';
   const priceNumber = parseFloat(priceString.replace(/[R$\s.]/g, '').replace(',', '.')) || 0;
   
   // Extrair ano do modelo
-  const modelYear = fipeData.modelYear || new Date().getFullYear();
+  const modelYear = fipeData.modelYear || fipeData.anoModelo || new Date().getFullYear();
   
   // Normalizar combustível
-  const fuel = normalizeFuelType(fipeData.fuel || 'Gasolina');
+  const fuel = normalizeFuelType(fipeData.fuel || fipeData.combustivel || 'Gasolina');
   
-      return {
-    id: fipeData.codeFipe || Math.random().toString(36).substr(2, 9),
-    brand: fipeData.brand || 'Marca não informada',
-    model: fipeData.model || 'Modelo não informado',
+  // Extrair marca e modelo
+  const brand = fipeData.brand || fipeData.marca || 'Marca não informada';
+  const model = fipeData.model || fipeData.modelo || 'Modelo não informado';
+  
+  // Extrair código FIPE
+  const fipeCode = fipeData.codeFipe || fipeData.codigoFipe || fipeData.code || '';
+  
+  // Extrair mês de referência
+  const referenceMonth = fipeData.referenceMonth || fipeData.mesReferencia || 'Atual';
+  
+  // Extrair tipo de veículo
+  const vehicleType = getVehicleTypeFromFipe(fipeData.vehicleType || fipeData.tipoVeiculo);
+  
+  // Extrair sigla do combustível
+  const fuelAcronym = getFuelAcronym(fuel);
+  
+  // Extrair histórico de preços se disponível
+  const priceHistory = fipeData.priceHistory || fipeData.historicoPrecos || [];
+  
+  // Extrair informações adicionais da FIPE
+  const fipeAdditionalInfo = {
+    authentication: fipeData.autenticacao || null,
+    dataConsultation: fipeData.dataConsulta || new Date().toISOString(),
+    fipeTable: fipeData.tabelaFipe || null,
+    referenceCode: fipeData.codigoReferencia || null,
+    searchedTerm: fipeData.termoPesquisado || null,
+    queryDate: fipeData.dataConsulta || new Date().toISOString()
+  };
+  
+  return {
+    // IDs e códigos
+    id: fipeCode || Math.random().toString(36).substr(2, 9),
+    fipeCode: fipeCode,
+    
+    // Informações básicas
+    brand: brand,
+    make: brand, // Compatibilidade
+    model: model,
     year: modelYear,
+    modelYear: modelYear,
+    
+    // Preços
     price: formatPriceBRL(priceNumber),
     priceNumber: priceNumber,
-    fipeCode: fipeData.codeFipe,
-    vehicleType: getVehicleTypeFromFipe(fipeData.vehicleType),
+    originalPrice: priceString,
+    
+    // Combustível
     fuel: fuel,
-    fuelAcronym: fipeData.fuelAcronym || 'G',
+    fuelAcronym: fuelAcronym,
+    originalFuel: fipeData.fuel || fipeData.combustivel,
+    
+    // Tipo de veículo
+    vehicleType: vehicleType,
+    originalVehicleType: fipeData.vehicleType || fipeData.tipoVeiculo,
+    
+    // Transmissão estimada
     transmission: estimateTransmission(fuel),
-    doors: estimateDoorsFromModel(fipeData.model),
-    seats: estimateSeatsFromModel(fipeData.model),
-    origin: getBrandOrigin(fipeData.brand),
-    warranty: getBrandWarranty(fipeData.brand),
-    features: getBrazilianFeatures(fipeData.model, priceNumber),
+    
+    // Especificações estimadas
+    doors: estimateDoorsFromModel(model),
+    seats: estimateSeatsFromModel(model),
+    
+    // Características do mercado brasileiro
+    origin: getBrandOrigin(brand),
+    warranty: getBrandWarranty(brand),
+    features: getBrazilianFeatures(model, priceNumber),
+    
+    // Performance estimada
     consumption: estimateConsumption(fuel, modelYear),
-    performance: estimatePerformance(fipeData.model, modelYear, fuel),
-    image: getCarImage(fipeData.brand, fipeData.model),
-    referenceMonth: fipeData.referenceMonth || 'Atual',
-    priceHistory: fipeData.priceHistory || []
+    performance: estimatePerformance(model, modelYear, fuel),
+    
+    // Imagem
+    image: getCarImage(brand, model),
+    
+    // Dados da FIPE
+    referenceMonth: referenceMonth,
+    priceHistory: priceHistory,
+    dataSource: 'fipe_api',
+    
+    // Informações adicionais da FIPE
+    fipeInfo: fipeAdditionalInfo,
+    
+    // Dados brutos originais da FIPE (para debugging/análise completa)
+    rawFipeData: fipeData,
+    
+    // Timestamps
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString()
   };
 }
 
@@ -468,11 +607,27 @@ function normalizeFuelType(fipeFuel) {
   return fuelMap[fipeFuel] || 'Flex';
 }
 
+function getFuelAcronym(fuel) {
+  const acronymMap = {
+    'Gasolina': 'G',
+    'Etanol': 'E',
+    'Álcool': 'E',
+    'Diesel': 'D',
+    'Flex': 'F',
+    'Elétrico': 'EL',
+    'Híbrido': 'H'
+  };
+  return acronymMap[fuel] || 'F';
+}
+
 function getVehicleTypeFromFipe(vehicleType) {
   const typeMap = {
     1: 'Carro',
     2: 'Moto', 
-    3: 'Caminhão'
+    3: 'Caminhão',
+    'cars': 'Carro',
+    'motorcycles': 'Moto',
+    'trucks': 'Caminhão'
   };
   return typeMap[vehicleType] || 'Carro';
 }
@@ -772,6 +927,429 @@ async function getBrazilianMarketStats() {
   }
 }
 
+// Buscar detalhes completos de múltiplos anos de um modelo
+async function getFipeVehicleDetailsAllYears(vehicleType = 'cars', brandId, modelId, maxYears = 5) {
+  try {
+    console.log(`🔍 Buscando detalhes de múltiplos anos para modelo ${modelId}...`);
+    
+    // Buscar anos disponíveis
+    const yearsResult = await getFipeYears(vehicleType, brandId, modelId);
+    if (!yearsResult.success || yearsResult.data.length === 0) {
+      throw new Error('Nenhum ano encontrado');
+    }
+
+    console.log(`📅 ${yearsResult.data.length} anos disponíveis`);
+    
+    // Limitar aos anos mais recentes
+    const selectedYears = yearsResult.data.slice(0, maxYears);
+    const allYearDetails = [];
+    
+    // Buscar detalhes para cada ano
+    for (const year of selectedYears) {
+      try {
+        const detailsResult = await getFipeVehicleDetails(vehicleType, brandId, modelId, year.code);
+        if (detailsResult.success) {
+          allYearDetails.push({
+            ...detailsResult.data,
+            yearInfo: year, // Informações adicionais do ano
+            detailsTimestamp: new Date().toISOString()
+          });
+        }
+      } catch (error) {
+        console.log(`⚠️ Erro ao buscar detalhes do ano ${year.name}:`, error.message);
+      }
+    }
+
+    return {
+      success: true,
+      data: allYearDetails,
+      total: allYearDetails.length,
+      source: 'fipe_api',
+      availableYears: yearsResult.data,
+      message: `${allYearDetails.length} versões encontradas com detalhes completos`
+    };
+
+  } catch (error) {
+    console.error('❌ Erro ao buscar detalhes de múltiplos anos:', error.message);
+    throw error;
+  }
+}
+
+// Função para calcular análise de preços
+function calculatePriceAnalysis(vehicles) {
+  if (!vehicles || vehicles.length === 0) return null;
+  
+  const prices = vehicles.map(v => v.priceNumber || 0).filter(p => p > 0);
+  
+  if (prices.length === 0) return null;
+  
+  const minPrice = Math.min(...prices);
+  const maxPrice = Math.max(...prices);
+  const avgPrice = prices.reduce((a, b) => a + b, 0) / prices.length;
+  
+  return {
+    minPrice: {
+      value: minPrice,
+      formatted: formatPriceBRL(minPrice)
+    },
+    maxPrice: {
+      value: maxPrice,
+      formatted: formatPriceBRL(maxPrice)
+    },
+    avgPrice: {
+      value: Math.round(avgPrice),
+      formatted: formatPriceBRL(Math.round(avgPrice))
+    },
+    priceRange: {
+      value: maxPrice - minPrice,
+      formatted: formatPriceBRL(maxPrice - minPrice)
+    },
+    totalVariations: prices.length,
+    priceDistribution: prices.sort((a, b) => a - b)
+  };
+}
+
+// Explorar informações adicionais da API FIPE
+async function exploreFipeAdditionalInfo() {
+  try {
+    console.log('🔍 Explorando informações adicionais da API FIPE...');
+    
+    const explorationResults = {
+      baseUrl: FIPE_BASE_URL,
+      timestamp: new Date().toISOString(),
+      exploredEndpoints: []
+    };
+
+    // Testar endpoints para obter mais informações
+    const endpointsToTest = [
+      { path: '/cars/brands', description: 'Marcas de carros' },
+      { path: '/motorcycles/brands', description: 'Marcas de motos' },
+      { path: '/trucks/brands', description: 'Marcas de caminhões' },
+      { path: '/references', description: 'Tabelas de referência' },
+      { path: '/info', description: 'Informações da API' },
+      { path: '/tables', description: 'Tabelas disponíveis' }
+    ];
+
+    for (const endpoint of endpointsToTest) {
+      try {
+        console.log(`🧪 Testando endpoint: ${endpoint.path}`);
+        const response = await axios.get(`${FIPE_BASE_URL}${endpoint.path}`, {
+          timeout: 5000
+        });
+        
+        explorationResults.exploredEndpoints.push({
+          path: endpoint.path,
+          description: endpoint.description,
+          status: 'success',
+          dataType: Array.isArray(response.data) ? 'array' : typeof response.data,
+          sampleData: Array.isArray(response.data) ? 
+            response.data.slice(0, 2) : 
+            response.data,
+          totalItems: Array.isArray(response.data) ? response.data.length : 1
+        });
+        
+        console.log(`✅ ${endpoint.path}: ${response.status} - ${Array.isArray(response.data) ? response.data.length : 1} items`);
+        
+      } catch (error) {
+        explorationResults.exploredEndpoints.push({
+          path: endpoint.path,
+          description: endpoint.description,
+          status: 'error',
+          error: error.message
+        });
+        console.log(`❌ ${endpoint.path}: ${error.message}`);
+      }
+    }
+
+    return {
+      success: true,
+      data: explorationResults,
+      source: 'fipe_exploration',
+      message: `Exploração concluída: ${explorationResults.exploredEndpoints.length} endpoints testados`
+    };
+
+  } catch (error) {
+    console.error('❌ Erro na exploração da FIPE:', error.message);
+    throw error;
+  }
+}
+
+// Buscar informações completas sobre as tabelas FIPE disponíveis
+async function getFipeTablesInfo() {
+  try {
+    console.log('📋 Buscando informações das tabelas FIPE...');
+    
+    const tablesInfo = {
+      timestamp: new Date().toISOString(),
+      vehicleTypes: {},
+      totalStats: {}
+    };
+
+    // Buscar informações para cada tipo de veículo
+    for (const [key, value] of Object.entries(VEHICLE_TYPES)) {
+      try {
+        console.log(`📊 Coletando estatísticas para ${value}...`);
+        
+        const brandsResult = await getFipeBrands(value);
+        if (brandsResult.success) {
+          tablesInfo.vehicleTypes[key] = {
+            type: value,
+            totalBrands: brandsResult.total,
+            sampleBrands: brandsResult.data.slice(0, 5),
+            popularBrands: brandsResult.data.filter(brand => 
+              ['Volkswagen', 'Chevrolet', 'Fiat', 'Ford', 'Toyota', 'Honda', 'Hyundai', 'Yamaha', 'Honda', 'Volvo'].some(popular =>
+                brand.name.toLowerCase().includes(popular.toLowerCase())
+              )
+            ).slice(0, 10)
+          };
+        }
+        
+      } catch (error) {
+        console.log(`⚠️ Erro ao coletar dados de ${value}:`, error.message);
+        tablesInfo.vehicleTypes[key] = {
+          type: value,
+          error: error.message
+        };
+      }
+    }
+
+    // Calcular estatísticas totais
+    const totalBrands = Object.values(tablesInfo.vehicleTypes)
+      .reduce((sum, type) => sum + (type.totalBrands || 0), 0);
+
+    tablesInfo.totalStats = {
+      totalVehicleTypes: Object.keys(tablesInfo.vehicleTypes).length,
+      totalBrands: totalBrands,
+      lastUpdated: new Date().toISOString(),
+      dataSource: 'fipe_api'
+    };
+
+    return {
+      success: true,
+      data: tablesInfo,
+      source: 'fipe_api',
+      message: `Informações coletadas de ${Object.keys(tablesInfo.vehicleTypes).length} tipos de veículos`
+    };
+
+  } catch (error) {
+    console.error('❌ Erro ao buscar informações das tabelas:', error.message);
+    throw error;
+  }
+}
+
+// Buscar referências históricas da FIPE
+async function getFipeReferences() {
+  try {
+    console.log('📅 Buscando referências históricas da FIPE...');
+    
+    const cacheKey = 'fipe_references';
+    const cached = cache.get(cacheKey);
+    if (cached) {
+      console.log('📦 Referências encontradas no cache');
+      return cached;
+    }
+
+    const response = await axios.get(`${FIPE_BASE_URL}/references`, {
+      timeout: 10000
+    });
+
+    console.log(`✅ FIPE retornou ${response.data.length} referências históricas`);
+    
+    const result = {
+      success: true,
+      data: response.data,
+      source: 'fipe_api',
+      total: response.data.length,
+      analysis: {
+        mostRecent: response.data[0],
+        oldest: response.data[response.data.length - 1],
+        totalMonths: response.data.length,
+        yearRange: {
+          from: response.data[response.data.length - 1]?.month?.match(/\d{4}/)?.[0],
+          to: response.data[0]?.month?.match(/\d{4}/)?.[0]
+        }
+      }
+    };
+
+    // Cache por 24 horas (referências mudam mensalmente)
+    cache.set(cacheKey, result, 86400000);
+    return result;
+
+  } catch (error) {
+    console.error('❌ Erro ao buscar referências FIPE:', error.message);
+    throw error;
+  }
+}
+
+// Buscar preço histórico de um veículo específico
+async function getFipeVehicleHistoricalPrice(vehicleType = 'cars', brandId, modelId, yearId, referenceId) {
+  try {
+    console.log(`📊 Buscando preço histórico para referência ${referenceId}...`);
+    
+    const cacheKey = `fipe_historical_${vehicleType}_${brandId}_${modelId}_${yearId}_${referenceId}`;
+    const cached = cache.get(cacheKey);
+    if (cached) {
+      console.log('📦 Preço histórico encontrado no cache');
+      return cached;
+    }
+
+    // Construir URL com referência específica
+    const url = `${FIPE_BASE_URL}/${vehicleType}/brands/${brandId}/models/${modelId}/years/${yearId}`;
+    const response = await axios.get(url, {
+      params: { reference: referenceId },
+      timeout: 10000
+    });
+
+    const historicalData = response.data;
+    console.log(`✅ Preço histórico obtido: ${historicalData.price} (${referenceId})`);
+    
+    const result = {
+      success: true,
+      data: {
+        ...historicalData,
+        referenceId: referenceId,
+        historicalQuery: true,
+        queryTimestamp: new Date().toISOString()
+      },
+      source: 'fipe_api'
+    };
+
+    // Cache por 1 hora
+    cache.set(cacheKey, result);
+    return result;
+
+  } catch (error) {
+    console.error('❌ Erro ao buscar preço histórico:', error.message);
+    return {
+      success: false,
+      error: error.message,
+      referenceId: referenceId
+    };
+  }
+}
+
+// Buscar evolução completa de preços de um veículo
+async function getFipeVehiclePriceEvolution(vehicleType = 'cars', brandId, modelId, yearId, maxReferences = 12) {
+  try {
+    console.log(`📈 Buscando evolução de preços para veículo...`);
+    
+    // Buscar referências disponíveis
+    const referencesResult = await getFipeReferences();
+    if (!referencesResult.success) {
+      throw new Error('Não foi possível obter referências');
+    }
+
+    console.log(`📅 ${referencesResult.data.length} referências disponíveis`);
+    
+    // Limitar número de referências para análise
+    const selectedReferences = referencesResult.data.slice(0, maxReferences);
+    const priceEvolution = [];
+
+    // Buscar preço para cada referência
+    for (const reference of selectedReferences) {
+      try {
+        const historicalResult = await getFipeVehicleHistoricalPrice(
+          vehicleType, brandId, modelId, yearId, reference.code
+        );
+        
+        if (historicalResult.success) {
+          priceEvolution.push({
+            reference: reference,
+            price: historicalResult.data.price,
+            priceNumber: parseFloat(historicalResult.data.price.replace(/[R$\s.]/g, '').replace(',', '.')) || 0,
+            month: reference.month,
+            vehicleData: historicalResult.data
+          });
+        }
+        
+        // Pequeno delay para não sobrecarregar a API
+        await new Promise(resolve => setTimeout(resolve, 100));
+        
+      } catch (error) {
+        console.log(`⚠️ Erro ao buscar preço para ${reference.month}:`, error.message);
+      }
+    }
+
+    // Calcular análise da evolução
+    const priceAnalysis = calculatePriceEvolutionAnalysis(priceEvolution);
+
+    return {
+      success: true,
+      data: {
+        priceEvolution: priceEvolution,
+        analysis: priceAnalysis,
+        totalReferences: priceEvolution.length,
+        requestedReferences: maxReferences,
+        availableReferences: referencesResult.data.length
+      },
+      source: 'fipe_api',
+      message: `Evolução de preços coletada para ${priceEvolution.length} períodos`
+    };
+
+  } catch (error) {
+    console.error('❌ Erro ao buscar evolução de preços:', error.message);
+    throw error;
+  }
+}
+
+// Calcular análise da evolução de preços
+function calculatePriceEvolutionAnalysis(priceEvolution) {
+  if (!priceEvolution || priceEvolution.length === 0) return null;
+
+  const prices = priceEvolution.map(p => p.priceNumber).filter(p => p > 0);
+  if (prices.length === 0) return null;
+
+  const oldestPrice = prices[prices.length - 1];
+  const newestPrice = prices[0];
+  const maxPrice = Math.max(...prices);
+  const minPrice = Math.min(...prices);
+  
+  const percentualChange = ((newestPrice - oldestPrice) / oldestPrice) * 100;
+  const absoluteChange = newestPrice - oldestPrice;
+
+  return {
+    oldestPrice: {
+      value: oldestPrice,
+      formatted: formatPriceBRL(oldestPrice),
+      period: priceEvolution[priceEvolution.length - 1]?.month
+    },
+    newestPrice: {
+      value: newestPrice,
+      formatted: formatPriceBRL(newestPrice),
+      period: priceEvolution[0]?.month
+    },
+    maxPrice: {
+      value: maxPrice,
+      formatted: formatPriceBRL(maxPrice)
+    },
+    minPrice: {
+      value: minPrice,
+      formatted: formatPriceBRL(minPrice)
+    },
+    change: {
+      absolute: {
+        value: absoluteChange,
+        formatted: formatPriceBRL(Math.abs(absoluteChange))
+      },
+      percentual: {
+        value: percentualChange,
+        formatted: `${percentualChange.toFixed(2)}%`,
+        direction: percentualChange >= 0 ? 'increase' : 'decrease'
+      }
+    },
+    volatility: {
+      range: maxPrice - minPrice,
+      rangeFormatted: formatPriceBRL(maxPrice - minPrice),
+      coefficient: ((maxPrice - minPrice) / ((maxPrice + minPrice) / 2)) * 100
+    },
+    trends: {
+      isAppreciating: percentualChange > 0,
+      isDepreciating: percentualChange < 0,
+      isStable: Math.abs(percentualChange) < 5
+    }
+  };
+}
+
 // Exportar funções principais
 module.exports = {
   smartCarSearch,
@@ -779,10 +1357,18 @@ module.exports = {
   getFipeModels,
   getFipeYears,
   getFipeVehicleDetails,
+  getFipeVehicleDetailsAllYears,
   getFipeByCode,
   searchVehiclesByMake,
   searchVehiclesByMakeModel,
   getPopularBrands,
   getBrazilianMarketStats,
-  cache
+  calculatePriceAnalysis,
+  cache,
+  exploreFipeAdditionalInfo,
+  getFipeTablesInfo,
+  getFipeReferences,
+  getFipeVehicleHistoricalPrice,
+  getFipeVehiclePriceEvolution,
+  calculatePriceEvolutionAnalysis
 }; 

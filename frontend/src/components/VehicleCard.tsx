@@ -14,7 +14,17 @@ const VehicleCard: React.FC<VehicleCardProps> = ({
   const getMake = () => vehicle.brand || vehicle.make || 'Marca';
   const getModel = () => vehicle.model || 'Modelo';
   const getYear = () => vehicle.year || 2024;
-  const getPrice = () => vehicle.price || 0;
+  const getPrice = () => {
+    // Priorizar priceNumber (valor numérico da FIPE) se disponível
+    if (vehicle.priceNumber) return vehicle.priceNumber;
+    if (vehicle.price && typeof vehicle.price === 'number') return vehicle.price;
+    if (vehicle.price && typeof vehicle.price === 'string') {
+      // Tentar extrair número do preço formatado
+      const numericPrice = parseFloat(vehicle.price.replace(/[R$\s.]/g, '').replace(',', '.'));
+      if (!isNaN(numericPrice)) return numericPrice;
+    }
+    return 0;
+  };
   const getFuel = () => vehicle.fuel || vehicle.fuel_type || 'flex';
   const getTransmission = () => vehicle.transmission || 'manual';
   const getFeatures = () => vehicle.features || [];

@@ -224,6 +224,43 @@ function enrichCarsWithImages(carsArray) {
   return carsArray.map(car => enrichCarWithImage(car));
 }
 
+/**
+ * Formatar preço em reais brasileiros
+ * @param {number} price - Preço em número
+ * @returns {string} Preço formatado em BRL
+ */
+function formatPriceBRL(price) {
+  if (!price || isNaN(price)) return 'R$ 0,00';
+  
+  return new Intl.NumberFormat('pt-BR', {
+    style: 'currency',
+    currency: 'BRL'
+  }).format(price);
+}
+
+/**
+ * Formatar consumo de combustível
+ * @param {number} consumption - Consumo em km/l
+ * @returns {string} Consumo formatado
+ */
+function formatConsumption(consumption) {
+  if (!consumption || isNaN(consumption)) return '0 km/l';
+  
+  return `${consumption.toFixed(1)} km/l`;
+}
+
+/**
+ * Converter MPG para km/l
+ * @param {number} mpg - Milhas por galão
+ * @returns {number} Quilômetros por litro
+ */
+function convertMpgToKmL(mpg) {
+  if (!mpg || isNaN(mpg)) return 0;
+  
+  // 1 MPG = 0.425144 km/l
+  return mpg * 0.425144;
+}
+
 module.exports = {
   getCarImage,
   getCarImages,
@@ -231,6 +268,9 @@ module.exports = {
   getValidatedCarImage,
   enrichCarWithImage,
   enrichCarsWithImages,
+  formatPriceBRL,
+  formatConsumption,
+  convertMpgToKmL,
   carImageMap,
   brandFallbackImages,
   defaultCarImage
